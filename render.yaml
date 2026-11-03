@@ -1,0 +1,17 @@
+# Render Blueprint — deploy gratis ke https://<nama>.onrender.com
+# Cara pakai: push repo ini ke GitHub, lalu di https://dashboard.render.com
+# pilih "New +" → "Blueprint" → pilih repo ini. Render akan membaca file ini otomatis.
+
+services:
+  - type: web
+    name: kuislive
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: PORT
+        value: "3000"
+    healthCheckPath: /

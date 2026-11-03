@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KuisLive — Kuis Interaktif Real-Time</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="page-landing">
+  <main class="landing-card">
+    <div class="logo">
+      <span class="logo-bolt">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </span>
+      <h1>Kuis<span>Live</span></h1>
+    </div>
+    <p class="tagline">Buat kuis, ajak teman, dan bersaing secara real-time.</p>
+
+    <div class="landing-actions">
+      <a class="btn btn-primary btn-big" href="/host.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Buat Kuis
+      </a>
+      <div class="join-box">
+        <label for="joinCode">Ikut Kuis</label>
+        <div class="join-row">
+          <input id="joinCode" class="code-input" maxlength="6" inputmode="numeric" placeholder="KODE" autocomplete="off" />
+          <button id="joinBtn" class="btn btn-accent">Masuk</button>
+        </div>
+        <p class="hint" id="joinHint">Masukkan 6 digit kode dari host.</p>
+      </div>
+    </div>
+
+    <div class="landing-features">
+      <div class="feature">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M5 3L3 5M19 3l2 2"/></svg>
+        Skor berdasarkan kecepatan
+      </div>
+      <div class="feature">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 01-10 0V4z"/><path d="M7 6H4v1.5a3.5 3.5 0 003.5 3.5"/><path d="M17 6h3v1.5a3.5 3.5 0 01-3.5 3.5"/><path d="M12 14v3"/><path d="M8.5 20h7"/></svg>
+        Papan skor &amp; podium live
+      </div>
+      <div class="feature">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 2.8-5.5 6.5-5.5s6.5 2 6.5 5.5"/><circle cx="17.5" cy="9" r="2.8"/><path d="M16 14.6c3 .3 5.5 2.2 5.5 5.4"/></svg>
+        Main bersama teman
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const codeInput = document.getElementById('joinCode');
+    const joinBtn = document.getElementById('joinBtn');
+    const hint = document.getElementById('joinHint');
+
+    codeInput.addEventListener('input', () => {
+      codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6);
+    });
+
+    function join() {
+      const code = codeInput.value.trim();
+      if (code.length !== 6) {
+        hint.textContent = 'Kode harus 6 digit angka.';
+        hint.classList.add('error');
+        return;
+      }
+      window.location.href = '/play.html?code=' + code;
+    }
+
+    joinBtn.addEventListener('click', join);
+    codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
+  </script>
+</body>
+</html>

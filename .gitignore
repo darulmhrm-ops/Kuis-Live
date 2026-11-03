@@ -1,0 +1,14 @@
+# dependency
+node_modules/
+
+# log & OS
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
+
+# data runtime (kuis buatan user di server akan ephemeral)
+# data/quizzes.json sengaja TIDAK di-ignore agar kuis demo ikut ter-deploy

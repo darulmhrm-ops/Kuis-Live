@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KuisLive — Bermain</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="page-play">
+
+  <!-- ================= JOIN ================= -->
+  <section id="view-join" class="view active">
+    <main class="join-card">
+      <div class="logo small">
+        <span class="logo-bolt">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </span>
+        <h1>Kuis<span>Live</span></h1>
+      </div>
+
+      <label class="field-label" for="codeInput">Kode Room</label>
+      <input id="codeInput" class="code-input big" maxlength="6" inputmode="numeric" placeholder="______" autocomplete="off" />
+
+      <label class="field-label" for="nameInput">Nama Panggilan</label>
+      <input id="nameInput" class="text-input" maxlength="20" placeholder="Nama kamu" autocomplete="off" />
+
+      <label class="field-label">Pilih Warna Avatar</label>
+      <div id="avatarPicker" class="avatar-picker"></div>
+
+      <button id="joinBtn" class="btn btn-primary btn-big">Masuk</button>
+      <p id="joinError" class="form-error"></p>
+    </main>
+  </section>
+
+  <!-- ================= WAITING ================= -->
+  <section id="view-waiting" class="view">
+    <main class="waiting-card">
+      <div id="waitAvatar" class="wait-avatar"></div>
+      <h2 id="waitName">Pemain</h2>
+      <p class="muted">Kamu sudah masuk! Tunggu host memulai…</p>
+      <div class="wait-dots"><span></span><span></span><span></span></div>
+    </main>
+  </section>
+
+  <!-- ================= SOAL ================= -->
+  <section id="view-question" class="view">
+    <div class="play-top">
+      <span id="playQCounter" class="q-counter">Soal 1/5</span>
+      <span id="playPoints" class="points-badge">+500</span>
+    </div>
+    <div class="timer-track"><div id="playTimerBar" class="timer-bar"></div></div>
+
+    <main class="play-main">
+      <h2 id="playQuestionText" class="question-text"></h2>
+      <div id="playOptions" class="option-grid play-options"></div>
+      <p id="answerStatus" class="answer-status hidden">Jawaban terkirim! Menunggu pemain lain…</p>
+    </main>
+
+    <div id="reactionBar" class="reaction-bar">
+      <button data-icon="heart" aria-label="Suka">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.7-9.3-9.2A5.4 5.4 0 0112 5.4 5.4 5.4 0 0121.3 11.8C19.5 16.3 12 21 12 21z"/></svg>
+      </button>
+      <button data-icon="star" aria-label="Bagus">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9L12 2.6z"/></svg>
+      </button>
+      <button data-icon="thumb" aria-label="Setuju">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10v11H4.5A1.5 1.5 0 013 19.5v-8A1.5 1.5 0 014.5 10H7zm2 0l4.2-7.5A1.8 1.8 0 0115.2 4v5.2h4.3a2 2 0 012 2.4l-1.3 6.6a2 2 0 01-2 1.6H9V10z"/></svg>
+      </button>
+      <button data-icon="zap" aria-label="Cepat">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </button>
+      <button data-icon="smile" aria-label="Senang">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14s1.3 2 3.5 2 3.5-2 3.5-2"/><circle cx="9" cy="9.8" r=".6" fill="currentColor"/><circle cx="15" cy="9.8" r=".6" fill="currentColor"/></svg>
+      </button>
+    </div>
+    <div id="playReactionLayer" class="reaction-layer"></div>
+  </section>
+
+  <!-- ================= HASIL JAWABAN ================= -->
+  <section id="view-reveal" class="view">
+    <main class="reveal-card">
+      <div id="revealIcon" class="reveal-icon ok"></div>
+      <h2 id="revealTitle" class="reveal-title"></h2>
+      <div id="revealPoints" class="reveal-points"></div>
+      <p id="revealMeme" class="reveal-meme"></p>
+      <p class="muted">Total skor: <strong id="revealScore">0</strong> · Streak: <strong id="revealStreak">0</strong></p>
+    </main>
+  </section>
+
+  <!-- ================= LEADERBOARD ================= -->
+  <section id="view-leaderboard" class="view">
+    <main class="lb-card">
+      <h2 class="lb-title">Papan Skor</h2>
+      <table class="lb-table">
+        <thead><tr><th>#</th><th>Pemain</th><th>Skor</th><th>Round</th></tr></thead>
+        <tbody id="playLbBody"></tbody>
+      </table>
+      <p class="hint">Soal berikutnya sebentar lagi…</p>
+    </main>
+  </section>
+
+  <!-- ================= FINISH ================= -->
+  <section id="view-finished" class="view">
+    <main class="fin-card">
+      <div id="finMedal" class="fin-medal"></div>
+      <h2 id="finRank" class="fin-rank"></h2>
+      <p id="finScore" class="fin-score"></p>
+      <div id="podiumMini" class="podium mini"></div>
+      <h3>Review Jawaban</h3>
+      <div id="reviewList" class="review-list"></div>
+      <button id="finHomeBtn" class="btn btn-outline btn-big">Kembali ke Beranda</button>
+    </main>
+  </section>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/play.js"></script>
+</body>
+</html>

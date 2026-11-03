@@ -1,0 +1,34 @@
+[
+  {
+    "id": "kdemo001",
+    "title": "Kuis Pengetahuan Umum",
+    "questions": [
+      {
+        "id": "qd1",
+        "text": "Siapa presiden pertama Republik Indonesia?",
+        "options": ["Soekarno", "Mohammad Hatta", "Soeharto", "Megawati"],
+        "correct": 0,
+        "timeLimit": 20,
+        "points": 500
+      },
+      {
+        "id": "qd2",
+        "text": "Berapa hasil dari 15 x 4?",
+        "options": ["30", "45", "60", "75"],
+        "correct": 2,
+        "timeLimit": 20,
+        "points": 500
+      },
+      {
+        "id": "qd3",
+        "text": "Ibu kota negara Jepang adalah...",
+        "options": ["Osaka", "Kyoto", "Tokyo", "Nagoya"],
+        "correct": 2,
+        "timeLimit": 20,
+        "points": 1000
+      }
+    ],
+    "settings": { "shuffleQuestions": false, "shuffleOptions": false },
+    "createdAt": "2026-11-03T10:00:00.000Z"
+  }
+]
