@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KuisLive — Login Guru</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="page-landing">
+  <main class="login-card">
+    <div class="logo">
+      <span class="logo-bolt">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </span>
+      <h1>Kuis<span>Live</span></h1>
+    </div>
+    <p class="login-subtitle">Masuk sebagai <strong>Guru / Admin</strong></p>
+
+    <form id="loginForm" class="login-form">
+      <label class="field-label" for="password">Password Guru</label>
+      <input id="password" type="password" class="text-input" placeholder="Masukkan password" autocomplete="current-password" />
+      <p id="loginError" class="form-error"></p>
+      <button type="submit" class="btn btn-primary btn-big">Masuk Dashboard</button>
+    </form>
+
+    <p class="hint">Password default: <strong>guru123</strong> — bisa diubah lewat pengaturan server.</p>
+    <a href="/" class="back-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 18l-6-6 6-6"/></svg>
+      Kembali
+    </a>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const form = document.getElementById('loginForm');
+    const password = document.getElementById('password');
+    const err = document.getElementById('loginError');
+
+    // sudah punya token? langsung ke dashboard
+    if (sessionStorage.getItem('kuisAdminToken')) {
+      window.location.href = '/host.html';
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      err.textContent = '';
+      socket.emit('admin:login', { password: password.value }, (res) => {
+        if (!res || !res.ok) {
+          err.textContent = (res && res.error) || 'Gagal login.';
+          return;
+        }
+        sessionStorage.setItem('kuisAdminToken', res.token);
+        window.location.href = '/host.html';
+      });
+    });
+
+    password.focus();
+  </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-/* ================= KuisLive — Host client ================= */
+/* ================= KuisLive — Guru/Admin client (dashboard) ================= */
 
 'use strict';
 
@@ -16,25 +16,67 @@ const ICONS = {
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z"/></svg>',
-  trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 01-10 0V4z"/><path d="M7 6H4v1.5a3.5 3.5 0 003.5 3.5"/><path d="M17 6h3v1.5a3.5 3.5 0 01-3.5 3.5"/><path d="M12 14v3"/><path d="M8.5 20h7"/></svg>',
 };
 
 let questions = []; // model editor
 let roomCode = null;
-let currentQuestion = null; // data soal aktif dari server
-let questionEndsAt = 0;
-let rafId = null;
-let lastPlayerCount = 0; // jumlah pemain terakhir (dari lobby)
+let lastPlayerCount = 0;
+let dashTimerInterval = null;
+let dashElapsedBase = 0;
 
-/* ---------- util avatar ---------- */
+/* ---------- util ---------- */
 
 function initial(name) {
   return String(name || '?').trim().charAt(0).toUpperCase() || '?';
 }
 
-function avatarHtml(name, color, extraClass = '') {
-  return `<span class="avatar ${extraClass}" style="background:${color}">${initial(name)}</span>`;
+function avatarHtml(name, color) {
+  return `<span class="avatar" style="background:${color}">${initial(name)}</span>`;
 }
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function showView(id) {
+  document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+function fmtTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/* ---------- auth: cek token, lanjutkan sesi di socket ini ---------- */
+
+const adminToken = sessionStorage.getItem('kuisAdminToken');
+if (!adminToken) {
+  window.location.href = '/login.html';
+} else {
+  // socket baru (setelah redirect dari login) → lanjutkan sesi dengan token yang ada
+  socket.emit('admin:resume', { token: adminToken }, (res) => {
+    if (!res || !res.ok) {
+      sessionStorage.removeItem('kuisAdminToken');
+      window.location.href = '/login.html';
+    }
+  });
+}
+
+function hostEmit(event, payload, ack) {
+  socket.emit(event, { ...(payload || {}), token: adminToken }, ack);
+}
+
+function logout() {
+  socket.emit('host:logout');
+  sessionStorage.removeItem('kuisAdminToken');
+  sessionStorage.removeItem('kuisRoom');
+  window.location.href = '/login.html';
+}
+$('logoutBtn').addEventListener('click', logout);
+$('logoutBtn2').addEventListener('click', logout);
+$('logoutBtn3').addEventListener('click', logout);
 
 /* ================= Editor ================= */
 
@@ -151,14 +193,16 @@ $('addQuestionBtn').addEventListener('click', () => {
 $('saveQuizBtn').addEventListener('click', () => {
   const err = $('editorError');
   err.textContent = '';
-  socket.emit('host:save_quiz', collectQuiz(), (res) => {
+  hostEmit('host:save_quiz', collectQuiz(), (res) => {
     if (!res.ok) {
-      err.textContent = res.errors[0];
+      err.textContent = res.errors ? res.errors[0] : res.error;
+      if (res.error && res.error.includes('Sesi')) window.location.href = '/login.html';
       return;
     }
-    socket.emit('host:create_room', { quizId: res.quizId }, (r) => {
+    hostEmit('host:create_room', { quizId: res.quizId }, (r) => {
       if (!r.ok) {
         err.textContent = r.error;
+        if (r.error && r.error.includes('Sesi')) window.location.href = '/login.html';
         return;
       }
       enterLobby(r.code);
@@ -169,7 +213,7 @@ $('saveQuizBtn').addEventListener('click', () => {
 /* ================= Kuis tersimpan ================= */
 
 function loadSavedQuizzes() {
-  socket.emit('host:list_quizzes', (list) => {
+  hostEmit('host:list_quizzes', {}, (list) => {
     const wrap = $('savedList');
     if (!list.length) {
       wrap.innerHTML = '<p class="muted">Belum ada kuis tersimpan. Buat baru dulu!</p>';
@@ -187,13 +231,13 @@ function loadSavedQuizzes() {
         </div>`;
       item.querySelector('h3').textContent = q.title;
       item.querySelector('.btn-primary').addEventListener('click', () => {
-        socket.emit('host:create_room', { quizId: q.id }, (r) => {
+        hostEmit('host:create_room', { quizId: q.id }, (r) => {
           if (r.ok) enterLobby(r.code);
         });
       });
       item.querySelector('.btn-outline').addEventListener('click', () => {
         if (!confirm(`Hapus kuis "${q.title}"?`)) return;
-        socket.emit('host:delete_quiz', { quizId: q.id }, () => loadSavedQuizzes());
+        hostEmit('host:delete_quiz', { quizId: q.id }, () => loadSavedQuizzes());
       });
       wrap.appendChild(item);
     });
@@ -214,12 +258,7 @@ $('tabSaved').addEventListener('click', () => {
   loadSavedQuizzes();
 });
 
-/* ================= Navigasi view ================= */
-
-function showView(id) {
-  document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
-  $(id).classList.add('active');
-}
+/* ================= Navigasi ================= */
 
 function enterLobby(code) {
   roomCode = code;
@@ -242,10 +281,20 @@ $('copyLinkBtn').addEventListener('click', async () => {
 });
 
 $('startBtn').addEventListener('click', () => {
-  socket.emit('host:start');
+  hostEmit('host:start');
 });
 
-/* ================= Game events ================= */
+$('endGameBtn').addEventListener('click', () => {
+  if (confirm('Akhiri kuis sekarang? Semua siswa akan langsung melihat hasil akhir.')) {
+    hostEmit('host:end_game');
+  }
+});
+
+$('playAgainBtn').addEventListener('click', () => {
+  hostEmit('host:play_again');
+});
+
+/* ================= Events ================= */
 
 socket.on('room:lobby', (data) => {
   if (data.code !== roomCode) return;
@@ -273,20 +322,19 @@ socket.on('room:lobby', (data) => {
       const off = document.createElement('span');
       off.className = 'offline-tag';
       off.textContent = 'offline';
-      off.title = 'Koneksi terputus — menunggu pemain kembali';
       chip.appendChild(off);
     }
     const kick = document.createElement('button');
     kick.className = 'kick';
     kick.textContent = '×';
     kick.title = 'Keluarkan pemain';
-    kick.addEventListener('click', () => socket.emit('host:kick', { playerId: p.id }));
+    kick.addEventListener('click', () => hostEmit('host:kick', { playerId: p.id }));
     chip.appendChild(kick);
     grid.appendChild(chip);
   });
   $('lobbyHint').textContent = data.players.length
-    ? `${data.players.length} pemain siap!`
-    : 'Menunggu pemain bergabung…';
+    ? `${data.players.length} siswa siap!`
+    : 'Menunggu siswa bergabung…';
   $('startBtn').disabled = data.players.length === 0;
 });
 
@@ -295,85 +343,84 @@ socket.on('host:error', (msg) => {
   $('lobbyHint').classList.add('error');
 });
 
-socket.on('game:question', (q) => {
-  currentQuestion = q;
-  questionEndsAt = q.endsAt;
-  showView('view-game');
-  $('gameQuestion').classList.remove('hidden');
-  $('gameLeaderboard').classList.add('hidden');
-  $('gameFinished').classList.add('hidden');
+/* ---------- dashboard live ---------- */
 
-  $('qCounter').textContent = `Soal ${q.index}/${q.total}`;
-  $('answeredBadge').textContent = `0/${lastPlayerCount} menjawab`;
-  $('questionText').textContent = q.text;
-  $('nextBtn').disabled = true;
-  $('skipBtn').classList.remove('hidden');
-  $('nextHint').textContent = 'Tunggu semua pemain menjawab…';
-
-  const grid = $('optionGrid');
-  grid.innerHTML = '';
-  q.options.forEach((opt, i) => {
-    const btn = document.createElement('button');
-    btn.className = `option-btn c${i}`;
-    btn.dataset.index = i;
-    btn.innerHTML = `<span class="opt-bar"></span><span class="opt-content"><span class="shape">${SHAPES[i]}</span><span class="opt-text"></span><span class="opt-count">0</span></span>`;
-    btn.querySelector('.opt-text').textContent = opt;
-    grid.appendChild(btn);
-  });
-
-  startTimerBar($('timerBar'), questionEndsAt);
-});
-
-socket.on('game:progress', ({ answered, total }) => {
-  $('answeredBadge').textContent = `${answered}/${total} menjawab`;
-  if (answered >= total && total > 0) {
-    $('nextBtn').disabled = false;
-    $('nextHint').textContent = 'Semua sudah menjawab — lanjut!';
+socket.on('host:dashboard', (d) => {
+  if (d.state === 'lobby') {
+    showView('view-lobby');
+    return;
   }
-});
+  if (d.state === 'finished') return; // ditangani game:finished_host
 
-socket.on('game:reveal', ({ correctIndex, optionCounts }) => {
-  stopTimerBar();
-  $('timerBar').style.width = '0%';
-  const btns = [...document.querySelectorAll('#optionGrid .option-btn')];
-  const max = Math.max(1, ...optionCounts);
-  btns.forEach((btn, i) => {
-    btn.disabled = true;
-    btn.querySelector('.opt-count').textContent = `${optionCounts[i]}`;
-    btn.querySelector('.opt-bar').style.width = `${(optionCounts[i] / max) * 100}%`;
-    if (i === correctIndex) btn.classList.add('correct');
-    else btn.classList.add('dim');
-  });
-  $('nextBtn').disabled = false;
-  $('skipBtn').classList.add('hidden');
-  $('nextHint').textContent = 'Tampilkan papan skor';
-});
+  showView('view-dashboard');
+  $('dashQuizTitle').textContent = `${d.quizTitle} · ${d.totalQuestions} soal`;
+  $('dashPlayerCount').textContent = `${d.players.length} siswa`;
 
-socket.on('game:leaderboard', ({ rows }) => {
-  showView('view-game');
-  $('gameQuestion').classList.add('hidden');
-  $('gameLeaderboard').classList.remove('hidden');
-  $('gameFinished').classList.add('hidden');
-  const body = $('lbBody');
+  // timer berjalan
+  dashElapsedBase = d.elapsedMs;
+  if (dashTimerInterval) clearInterval(dashTimerInterval);
+  dashTimerInterval = setInterval(() => {
+    $('dashTimer').textContent = fmtTime(dashElapsedBase + 1000);
+    dashElapsedBase += 1000;
+  }, 1000);
+  $('dashTimer').textContent = fmtTime(d.elapsedMs);
+
+  // tabel klasemen live
+  const rows = [...d.players].sort((a, b) => b.score - a.score);
+  const body = $('dashBody');
   body.innerHTML = '';
-  rows.forEach((r) => {
+  rows.forEach((p, i) => {
     const tr = document.createElement('tr');
+    const statusMap = {
+      answering: '<span class="status-pill answering">Menjawab</span>',
+      done: '<span class="status-pill done">Selesai</span>',
+      waiting: '<span class="status-pill waiting">Menunggu</span>',
+    };
+    const pos = p.status === 'done' ? 'Selesai' : p.qIndex < 0 ? '—' : `Soal ${p.qIndex + 1}/${d.totalQuestions}`;
     tr.innerHTML = `
-      <td class="rank-cell"><span class="rank-badge ${r.rank <= 3 ? 'r' + r.rank : ''}">${r.rank}</span></td>
-      <td><span class="lb-player">${avatarHtml(r.name, r.color)}<span>${escapeHtml(r.name)}</span></span></td>
-      <td>${r.score}</td>
-      <td class="delta ${r.delta ? '' : 'zero'}">${r.delta ? '+' + r.delta : '—'}</td>`;
+      <td class="rank-cell"><span class="rank-badge ${i + 1 <= 3 ? 'r' + (i + 1) : ''}">${i + 1}</span></td>
+      <td><span class="lb-player">${avatarHtml(p.name, p.color)}<span>${escapeHtml(p.name)}${p.connected === false ? ' <em class="offline-tag">offline</em>' : ''}</span></span></td>
+      <td><strong>${p.score}</strong></td>
+      <td>
+        <div class="dash-progress">
+          <div class="dash-progress-track"><div class="dash-progress-bar" style="width:${p.progressPct}%"></div></div>
+          <span class="dash-progress-label">${pos}</span>
+        </div>
+      </td>
+      <td>${statusMap[p.status] || ''}</td>`;
     body.appendChild(tr);
   });
-  $('lbNextBtn').innerHTML = `Lanjut
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>`;
+
+  // referensi soal (kunci jawaban)
+  const refList = $('dashQuestions');
+  refList.innerHTML = '';
+  (d.questions || []).forEach((q, i) => {
+    const item = document.createElement('div');
+    item.className = 'ref-item';
+    item.innerHTML = `
+      <div class="ref-q">${i + 1}. ${escapeHtml(q.text)}</div>
+      <div class="ref-a">Kunci: <b>${escapeHtml(q.correct)}</b> · ${q.points} poin · ${q.timeLimit}s</div>`;
+    refList.appendChild(item);
+  });
+
+  // statistik per soal
+  const statList = $('dashStats');
+  statList.innerHTML = '';
+  const totalPlayers = d.players.length || 1;
+  (d.questionStats || []).forEach((s, i) => {
+    const pct = Math.round((s.answered / totalPlayers) * 100);
+    const item = document.createElement('div');
+    item.className = 'stat-item';
+    item.innerHTML = `
+      <div class="stat-head"><span>Soal ${i + 1}</span><span>${s.answered}/${d.players.length} menjawab · ${s.correct} benar</span></div>
+      <div class="stat-track"><div class="stat-bar" style="width:${pct}%"></div></div>`;
+    statList.appendChild(item);
+  });
 });
 
 socket.on('game:finished_host', ({ podium, rows }) => {
-  showView('view-game');
-  $('gameQuestion').classList.add('hidden');
-  $('gameLeaderboard').classList.add('hidden');
-  $('gameFinished').classList.remove('hidden');
+  if (dashTimerInterval) clearInterval(dashTimerInterval);
+  showView('view-finished');
   renderPodium($('podium'), podium);
   const body = $('finBody');
   body.innerHTML = '';
@@ -391,36 +438,11 @@ socket.on('game:reset', () => {
   showView('view-lobby');
 });
 
-/* reaksi mengambang di layar host */
 socket.on('reaction', ({ name, icon }) => {
   spawnFloating($('reactionLayer'), icon);
 });
 
-$('nextBtn').addEventListener('click', () => socket.emit('host:next'));
-$('skipBtn').addEventListener('click', () => socket.emit('host:next')); // akhiri soal lebih awal
-$('lbNextBtn').addEventListener('click', () => socket.emit('host:next'));
-$('playAgainBtn').addEventListener('click', () => socket.emit('host:play_again'));
-
 /* ================= Utilitas ================= */
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-function startTimerBar(bar, endsAt) {
-  stopTimerBar();
-  const total = endsAt - Date.now();
-  const tick = () => {
-    const remain = Math.max(0, endsAt - Date.now());
-    bar.style.width = `${(remain / total) * 100}%`;
-    if (remain > 0) rafId = requestAnimationFrame(tick);
-  };
-  tick();
-}
-function stopTimerBar() {
-  if (rafId) cancelAnimationFrame(rafId);
-  rafId = null;
-}
 
 function spawnFloating(layer, iconSvg) {
   const el = document.createElement('div');
@@ -433,7 +455,7 @@ function spawnFloating(layer, iconSvg) {
 
 function renderPodium(container, podium) {
   container.innerHTML = '';
-  const order = [podium[1], podium[0], podium[2]]; // kiri: juara 2, tengah: juara 1, kanan: juara 3
+  const order = [podium[1], podium[0], podium[2]];
   const cls = ['second', 'first', 'third'];
   order.forEach((r, i) => {
     if (!r) return;
@@ -453,16 +475,16 @@ function renderPodium(container, podium) {
 questions.push(newQuestion());
 renderEditor();
 
-// rejoin otomatis kalau host refresh halaman di tengah permainan
+// rejoin otomatis kalau guru refresh halaman di tengah permainan
 const savedRoom = sessionStorage.getItem('kuisRoom');
-if (savedRoom) {
-  socket.emit('host:rejoin', { code: savedRoom }, (res) => {
+if (savedRoom && adminToken) {
+  hostEmit('host:rejoin', { code: savedRoom }, (res) => {
     if (res.ok) {
       roomCode = savedRoom;
       $('lobbyCode').textContent = savedRoom;
       $('joinLink').value = `${location.origin}/play.html?code=${savedRoom}`;
       if (res.state === 'lobby') showView('view-lobby');
-      else showView('view-game');
+      // state playing/finished → ditangani event host:dashboard / game:finished_host
     } else {
       sessionStorage.removeItem('kuisRoom');
     }

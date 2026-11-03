@@ -841,4 +841,218 @@ svg { display: block; }
   .join-row .code-input { width: 100%; }
   .topbar { padding: 12px 16px; }
   .podium-block { width: 88px; }
+  .dashboard-wrap { grid-template-columns: 1fr; }
+  .role-picker { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   KuisLive 2.0 — komponen baru: login, pemilih peran, dashboard
+   ============================================================ */
+
+/* ---------- tombol kecil & topbar kanan ---------- */
+
+.btn-sm { padding: 8px 14px; font-size: 0.85rem; border-radius: 10px; }
+.topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ---------- login guru ---------- */
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px 36px;
+  width: min(420px, 100%);
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+.login-subtitle { color: var(--muted); margin: 16px 0 24px; font-size: 1rem; }
+.login-subtitle strong { color: var(--ink); }
+.login-form { text-align: left; }
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 20px;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: color 0.15s ease;
+}
+.back-link svg { width: 16px; height: 16px; }
+.back-link:hover { color: var(--brand); }
+
+/* ---------- pemilih peran (landing) ---------- */
+
+.role-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.role-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  padding: 20px 18px;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--ink);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.role-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: var(--brand);
+}
+.role-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.role-icon svg { width: 24px; height: 24px; }
+.role-admin .role-icon { background: var(--brand-soft); color: var(--brand); }
+.role-student .role-icon { background: #e0f2f1; color: #0d9488; }
+.role-text { display: grid; gap: 2px; min-width: 0; }
+.role-text strong { font-size: 1rem; font-weight: 700; }
+.role-text small { color: var(--muted); font-size: 0.82rem; line-height: 1.35; }
+
+/* ---------- dashboard guru ---------- */
+
+.dash-quiz-title { font-weight: 700; color: var(--ink-soft); font-size: 0.92rem; }
+.dashboard-wrap {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.dash-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+}
+.dash-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--ink);
+}
+.dash-side { display: grid; gap: 20px; }
+
+/* progres pemain di dashboard */
+.dash-progress { display: flex; align-items: center; gap: 10px; min-width: 160px; }
+.dash-progress-track {
+  flex: 1;
+  height: 7px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.dash-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand), #8b5cf6);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+.dash-progress-label { font-size: 0.8rem; color: var(--muted); white-space: nowrap; font-weight: 600; }
+
+/* status pill */
+.status-pill {
+  display: inline-block;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+.status-pill.answering { background: var(--brand-soft); color: var(--brand-dark); }
+.status-pill.done { background: #d1fae5; color: #065f46; }
+.status-pill.waiting { background: #f1f1f6; color: var(--muted); }
+
+/* referensi soal (kunci jawaban) */
+.ref-list { display: grid; gap: 10px; max-height: 340px; overflow-y: auto; }
+.ref-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: var(--surface-2);
+}
+.ref-q { font-weight: 600; font-size: 0.88rem; margin-bottom: 3px; line-height: 1.35; }
+.ref-a { font-size: 0.8rem; color: var(--muted); }
+.ref-a b { color: var(--green); }
+
+/* statistik per soal */
+.stat-list { display: grid; gap: 12px; }
+.stat-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 5px;
+}
+.stat-head span:last-child { color: var(--muted); font-weight: 500; }
+.stat-track { height: 7px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.stat-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), #34d399);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+/* ---------- hitung mundur auto-pindah (siswa) ---------- */
+
+.auto-next {
+  margin-top: 24px;
+  padding: 16px;
+  background: var(--brand-softer);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.auto-next-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.auto-next-count { font-size: 1.3rem; font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums; }
+.auto-next-track {
+  height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+.auto-next-bar {
+  height: 100%;
+  width: 100%;
+  background: var(--brand);
+  border-radius: 99px;
+  transition: width 0.1s linear;
+}
+
+/* ---------- layar "sudah selesai" (siswa) ---------- */
+
+.done-head { text-align: center; margin-bottom: 20px; }
+.done-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #d1fae5;
+  color: var(--green);
+  display: grid;
+  place-items: center;
+  margin: 0 auto 12px;
+}
+.done-icon svg { width: 28px; height: 28px; }
+.done-head .lb-title { margin-bottom: 6px; }
+.done-head .muted strong { color: var(--brand); }

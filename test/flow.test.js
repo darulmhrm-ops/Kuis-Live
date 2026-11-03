@@ -1,8 +1,10 @@
 'use strict';
 
 /**
- * Integration test KuisLive:
- * mensimulasikan 1 host + 3 pemain memainkan satu kuis 2 soal dari awal sampai selesai.
+ * Integration test KuisLive 2.0 (mode mandiri + auth admin):
+ * 1 guru (login password) + 4 siswa memainkan kuis 2 soal.
+ * Setiap siswa menjawab dengan tempo sendiri → hasil → 3 detik → soal berikutnya OTOMATIS.
+ *
  * Jalankan: npm test  (server harus berjalan di port 3000)
  *
  * Pola: SEMUA listener didaftarkan SEBELUM event pemicu dikirim,
@@ -12,6 +14,7 @@
 const { io } = require('socket.io-client');
 
 const URL = process.env.URL || 'http://localhost:3000';
+const PASSWORD = process.env.ADMIN_PASSWORD || 'guru123';
 let failed = 0;
 let total = 0;
 
@@ -24,7 +27,7 @@ function check(name, cond, extra = '') {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function once(socket, event, timeout = 8000) {
+function once(socket, event, timeout = 15000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`timeout menunggu event "${event}"`)), timeout);
     socket.once(event, (payload) => {
@@ -35,226 +38,201 @@ function once(socket, event, timeout = 8000) {
 }
 
 async function main() {
-  /* ---------- 1. Host simpan kuis & buat room ---------- */
+  /* ---------- 1. Autentikasi admin ---------- */
   const host = io(URL, { transports: ['websocket'] });
   await once(host, 'connect');
 
+  const badLogin = await new Promise((r) => host.emit('admin:login', { password: 'salah' }, r));
+  check('auth: password salah ditolak', !badLogin.ok, badLogin.error || '');
+
+  const goodLogin = await new Promise((r) => host.emit('admin:login', { password: PASSWORD }, r));
+  check('auth: password benar diterima', goodLogin.ok && !!goodLogin.token, goodLogin.error || '');
+  const token = goodLogin.token;
+
+  // aksi host dari socket yang TIDAK login harus ditolak
+  const stranger = io(URL, { transports: ['websocket'] });
+  await once(stranger, 'connect');
+  const noToken = await new Promise((r) => stranger.emit('host:list_quizzes', {}, r));
+  check('auth: aksi host tanpa login ditolak', Array.isArray(noToken) && noToken.length === 0);
+  stranger.close();
+
+  /* ---------- 2. Simpan kuis & buat room ---------- */
   const quiz = {
-    title: 'Kuis Uji Coba',
+    title: 'Kuis Barudak Darul Bren Macum',
     questions: [
-      { text: 'Siapa presiden pertama RI?', options: ['Soekarno', 'Hatta', 'Soeharto', 'Megawati'], correct: 0, timeLimit: 30, points: 500 },
+      { text: 'Siapa presiden pertama RI?', options: ['Soekarno', 'Hatta', 'Soeharto', 'Megawati'], correct: 0, timeLimit: 5, points: 500 },
       { text: '2 + 2 = ?', options: ['3', '4', '5', '6'], correct: 1, timeLimit: 30, points: 1000 },
     ],
     settings: { shuffleQuestions: false, shuffleOptions: false },
   };
 
-  const saveRes = await new Promise((r) => host.emit('host:save_quiz', quiz, r));
-  check('host: simpan kuis', saveRes.ok, saveRes.errors ? saveRes.errors.join('; ') : '');
+  const saveRes = await new Promise((r) => host.emit('host:save_quiz', { ...quiz, token }, r));
+  check('host: simpan kuis', saveRes.ok, saveRes.errors ? saveRes.errors.join('; ') : saveRes.error || '');
 
-  const roomRes = await new Promise((r) => host.emit('host:create_room', { quizId: saveRes.quizId }, r));
+  const roomRes = await new Promise((r) => host.emit('host:create_room', { quizId: saveRes.quizId, token }, r));
   check('host: buat room', roomRes.ok, roomRes.error || '');
   const code = roomRes.code;
   check('host: kode room 6 digit', /^\d{6}$/.test(code), code);
 
-  // listener lobby aktif SEBELUM pemain join agar tidak ketinggalan event
-  let latestLobby = null;
-  host.on('room:lobby', (d) => { latestLobby = d; });
-
-  /* ---------- 2. Validasi join ---------- */
-  const badCode = io(URL, { transports: ['websocket'] });
-  await once(badCode, 'connect');
-  const badRes = await new Promise((r) => badCode.emit('player:join', { code: '000000', name: 'X' }, r));
-  check('pemain: kode salah ditolak', !badRes.ok && /tidak ditemukan/i.test(badRes.error), badRes.error);
-  badCode.close();
-
-  /* ---------- 3. Tiga pemain join ---------- */
+  /* ---------- 3. Empat siswa join ---------- */
   const players = {};
-  for (const name of ['Budi', 'Siti', 'Andi']) {
+  for (const name of ['Budi', 'Siti', 'Andi', 'Cici']) {
     const s = io(URL, { transports: ['websocket'] });
     await once(s, 'connect');
     const res = await new Promise((r) => s.emit('player:join', { code, name }, r));
-    check(`pemain: ${name} join`, res.ok, res.error || '');
+    check(`siswa: ${name} join`, res.ok, res.error || '');
     players[name] = s;
   }
 
   const dup = io(URL, { transports: ['websocket'] });
   await once(dup, 'connect');
   const dupRes = await new Promise((r) => dup.emit('player:join', { code, name: 'budi' }, r));
-  check('pemain: nama ganda ditolak', !dupRes.ok, dupRes.error || '');
+  check('siswa: nama ganda ditolak', !dupRes.ok, dupRes.error || '');
   dup.close();
 
-  await sleep(300); // beri waktu event lobby terakhir sampai
-  check('lobby: 3 pemain terdaftar', latestLobby && latestLobby.players.length === 3, `dapat ${latestLobby ? latestLobby.players.length : 0}`);
-  check('lobby: QR code join tersedia', latestLobby && typeof latestLobby.qr === 'string' && latestLobby.qr.startsWith('data:image/png'), latestLobby && latestLobby.qr ? 'ada' : 'tidak ada');
-  check('lobby: URL join sesuai host', latestLobby && /^https?:\/\/.+\/play\.html\?code=\d{6}$/.test(latestLobby.joinUrl || ''), latestLobby && latestLobby.joinUrl);
+  const badCode = io(URL, { transports: ['websocket'] });
+  await once(badCode, 'connect');
+  const badRes = await new Promise((r) => badCode.emit('player:join', { code: '000000', name: 'X' }, r));
+  check('siswa: kode salah ditolak', !badRes.ok && /tidak ditemukan/i.test(badRes.error), badRes.error);
+  badCode.close();
 
-  /* ---------- 4. Mulai game, soal 1 ---------- */
-  // daftar listener SEBELUM host:start
-  const q1Host = once(host, 'game:question');
-  const q1Players = {};
-  for (const name of Object.keys(players)) q1Players[name] = once(players[name], 'game:question');
+  // listener lobby & dashboard aktif sejak sebelum start
+  let latestLobby = null;
+  let latestDash = null;
+  host.on('room:lobby', (d) => { latestLobby = d; });
+  host.on('host:dashboard', (d) => { latestDash = d; });
 
-  host.emit('host:start');
-  const q1 = await q1Host;
-  check('game: soal 1 tampil', q1.index === 1 && q1.total === 2 && q1.options.length === 4, q1.text);
-  for (const name of Object.keys(players)) {
-    const q = await q1Players[name];
-    check(`game: ${name} menerima soal 1`, q.text === q1.text);
-  }
+  /* ---------- 4. Mulai kuis → semua siswa dapat soal 1 ---------- */
+  const q1Host = once(host, 'host:dashboard'); // dashboard update saat start
+  const q1Listeners = {};
+  for (const name of Object.keys(players)) q1Listeners[name] = once(players[name], 'game:question');
 
-  // Budi benar instan, Andi salah, Siti benar setelah ~1s (jawaban terakhir → memicu reveal)
-  const youBudiP = once(players.Budi, 'game:reveal_you');
-  const youSitiP = once(players.Siti, 'game:reveal_you');
-  const youAndiP = once(players.Andi, 'game:reveal_you');
-  const revealHostP = once(host, 'game:reveal');
+  host.emit('host:start', { token });
+  const q1s = {};
+  for (const name of Object.keys(players)) q1s[name] = await q1Listeners[name];
+  check('game: semua siswa menerima soal 1', Object.values(q1s).every((q) => q.index === 1 && q.total === 2));
+  await q1Host;
+  check('dashboard: state playing', latestDash && latestDash.state === 'playing', latestDash && latestDash.state);
+  check('dashboard: 4 siswa terdaftar', latestDash && latestDash.players.length === 4, latestDash && String(latestDash.players.length));
 
-  players.Budi.emit('player:answer', { qIndex: 0, optionIndex: 0 });
+  /* ---------- 5. Jawab dengan tempo berbeda → skor berbeda ---------- */
+  // daftarkan listener SEBELUM menjawab
+  const resBudi = once(players.Budi, 'game:answer_result');
+  const resSiti = once(players.Siti, 'game:answer_result');
+  const resAndi = once(players.Andi, 'game:answer_result');
+  const resCici = once(players.Cici, 'game:answer_result');
+  const q2Budi = once(players.Budi, 'game:question'); // auto-advance Budi
+
+  players.Budi.emit('player:answer', { optionIndex: 0 }); // benar, cepat
+  await sleep(400);
+  players.Siti.emit('player:answer', { optionIndex: 0 }); // benar, lebih lambat
+  await sleep(400);
+  players.Andi.emit('player:answer', { optionIndex: 2 }); // salah
+  // Cici sengaja tidak menjawab → waktu habis
+
+  const rBudi = await resBudi;
+  const rSiti = await resSiti;
+  const rAndi = await resAndi;
+  check('skor: Budi benar cepat ≈ 500', rBudi.correct && rBudi.points >= 470 && rBudi.points <= 500, `+${rBudi.points}`);
+  check('skor: Siti benar lebih lambat < Budi', rSiti.correct && rSiti.points < rBudi.points, `+${rSiti.points}`);
+  check('skor: Andi salah = 0', !rAndi.correct && rAndi.points === 0, `+${rAndi.points}`);
+
+  /* ---------- 6. Mode mandiri: Budi auto-advance tanpa menunggu yang lain ---------- */
+  const q2B = await q2Budi; // Budi dapat soal 2 setelah ±3 detik
+  check('mandiri: Budi otomatis dapat soal 2', q2B.index === 2, `soal ${q2B.index}`);
   await sleep(300);
-  players.Andi.emit('player:answer', { qIndex: 0, optionIndex: 2 });
-  await sleep(700);
-  players.Siti.emit('player:answer', { qIndex: 0, optionIndex: 0 });
+  check('mandiri: Andi masih di soal 1 (progresi independen)',
+    latestDash && latestDash.players.find((p) => p.name === 'Andi').qIndex === 0,
+    latestDash && JSON.stringify(latestDash.players.map((p) => `${p.name}:${p.qIndex}`)));
 
-  const reveal = await revealHostP;
-  check('reveal: kunci jawaban soal 1 = opsi 0', reveal.correctIndex === 0, `dapat ${reveal.correctIndex}`);
-  check('reveal: distribusi jawaban [2,0,1,0]', JSON.stringify(reveal.optionCounts) === JSON.stringify([2, 0, 1, 0]), JSON.stringify(reveal.optionCounts));
+  // Cici tidak menjawab → timeout otomatis
+  const rCici = await resCici;
+  check('mandiri: Cici timeout = 0 poin', !rCici.answered && rCici.points === 0, `answered=${rCici.answered}`);
 
-  const youBudi = await youBudiP;
-  const youSiti = await youSitiP;
-  const youAndi = await youAndiP;
-  check('skor: Budi benar cepat ≈ 500', youBudi.correct && youBudi.points >= 470 && youBudi.points <= 500, `+${youBudi.points}`);
-  check('skor: Siti benar lebih lambat < Budi', youSiti.correct && youSiti.points >= 380 && youSiti.points < youBudi.points, `+${youSiti.points}`);
-  check('skor: Andi salah = 0', !youAndi.correct && youAndi.points === 0, `+${youAndi.points}`);
+  /* ---------- 7. Budi selesai lebih dulu → player_done + klasemen live ---------- */
+  const doneBudi = once(players.Budi, 'game:player_done');
+  players.Budi.emit('player:answer', { optionIndex: 1 }); // benar
+  const dBudi = await doneBudi;
+  check('mandiri: Budi selesai → dapat klasemen live', dBudi.standings.length === 4, `${dBudi.standings.length} pemain`);
+  check('mandiri: Budi peringkat 1 sementara', dBudi.standings[0].name === 'Budi', dBudi.standings.map((s) => s.name).join(', '));
 
-  /* ---------- 5. Leaderboard round 1 ---------- */
-  const lb1P = once(host, 'game:leaderboard');
-  host.emit('host:next');
-  const lb1 = await lb1P;
-  check('leaderboard: urutan Budi > Siti > Andi',
-    lb1.rows[0].name === 'Budi' && lb1.rows[1].name === 'Siti' && lb1.rows[2].name === 'Andi',
-    lb1.rows.map((r) => `${r.name}:${r.score}`).join(', '));
+  // Budi belum boleh menerima game:finished (yang lain masih main)
+  let budiFinishedEarly = false;
+  players.Budi.once('game:finished', () => { budiFinishedEarly = true; });
+  await sleep(500);
+  check('mandiri: Budi belum dapat hasil akhir saat yang lain masih main', !budiFinishedEarly);
 
-  /* ---------- 6. Soal 2 ---------- */
-  const q2Host = once(host, 'game:question');
-  const q2Players = {};
-  for (const name of Object.keys(players)) q2Players[name] = once(players[name], 'game:question');
+  /* ---------- 8. Siswa lain menyelesaikan → semua selesai → podium ---------- */
+  const finHost = once(host, 'game:finished_host');
+  const finBudi = once(players.Budi, 'game:finished');
 
-  host.emit('host:next');
-  const q2 = await q2Host;
-  check('game: soal 2 tampil', q2.index === 2, q2.text);
-  for (const name of Object.keys(players)) {
-    await q2Players[name];
-  }
+  players.Siti.emit('player:answer', { optionIndex: 1 }); // benar
+  players.Andi.emit('player:answer', { optionIndex: 1 }); // benar
+  players.Cici.emit('player:answer', { optionIndex: 1 }); // benar
 
-  const reveal2P = once(host, 'game:reveal');
-  players.Siti.emit('player:answer', { qIndex: 1, optionIndex: 1 }); // benar
-  players.Budi.emit('player:answer', { qIndex: 1, optionIndex: 1 }); // benar
-  players.Andi.emit('player:answer', { qIndex: 1, optionIndex: 0 }); // salah
+  const finH = await finHost;
+  check('finish: podium 3 orang', finH.podium.length === 3, finH.podium.map((p) => p.name).join(', '));
+  check('finish: juara 1 = Budi', finH.podium[0].name === 'Budi');
+  check('finish: statistik per soal lengkap', finH.questionStats.length === 2, JSON.stringify(finH.questionStats));
 
-  const reveal2 = await reveal2P;
-  check('reveal: kunci jawaban soal 2 = opsi 1', reveal2.correctIndex === 1, `dapat ${reveal2.correctIndex}`);
+  const finB = await finBudi;
+  check('finish: Budi peringkat 1', finB.you.rank === 1, `#${finB.you.rank}`);
+  check('finish: review Budi 2 soal, semua benar', finB.you.review.length === 2 && finB.you.review.every((r) => r.correct));
 
-  const lb2P = once(host, 'game:leaderboard');
-  host.emit('host:next');
-  const lb2 = await lb2P;
-  check('leaderboard: Budi tetap juara 1', lb2.rows[0].name === 'Budi', lb2.rows.map((r) => `${r.name}:${r.score}`).join(', '));
-  check('leaderboard: total Budi ≈ 1500', lb2.rows[0].score >= 1400, `${lb2.rows[0].score}`);
-
-  /* ---------- 7. Selesai ---------- */
-  const finHostP = once(host, 'game:finished_host');
-  const finBudiP = once(players.Budi, 'game:finished');
-  const finAndiP = once(players.Andi, 'game:finished');
-
-  host.emit('host:next');
-  const finHost = await finHostP;
-  check('finish: podium 3 orang', finHost.podium.length === 3, finHost.podium.map((p) => p.name).join(', '));
-  check('finish: juara 1 = Budi', finHost.podium[0].name === 'Budi');
-
-  const finBudi = await finBudiP;
-  check('finish: Budi dapat review 2 soal', finBudi.you.review.length === 2, `${finBudi.you.review.length}`);
-  check('finish: Budi peringkat 1', finBudi.you.rank === 1, `#${finBudi.you.rank}`);
-  check('finish: review Budi dua-duanya benar', finBudi.you.review.every((r) => r.correct));
-
-  const finAndi = await finAndiP;
-  check('finish: Andi peringkat 3', finAndi.you.rank === 3, `#${finAndi.you.rank}`);
-  check('finish: review Andi dua-duanya salah', finAndi.you.review.every((r) => !r.correct));
-
-  /* ---------- 8. Main lagi ---------- */
+  /* ---------- 9. Main lagi → lobby, skor reset ---------- */
   const resetP = once(players.Budi, 'game:reset');
-  const lobby2P = once(host, 'room:lobby');
-  host.emit('host:play_again');
+  const lobbyP = once(host, 'room:lobby');
+  host.emit('host:play_again', { token });
   await resetP;
-  const lobby2 = await lobby2P;
-  check('play again: 3 pemain tetap di lobby', lobby2.players.length === 3, `dapat ${lobby2.players.length}`);
+  await lobbyP;
+  check('play again: kembali ke lobby', latestLobby && latestLobby.players.length === 4, `${latestLobby && latestLobby.players.length} pemain`);
 
-  /* ---------- 9. Rejoin host & pemain di tengah soal ---------- */
-  const q3Host = once(host, 'game:question');
-  host.emit('host:start');
-  const q3 = await q3Host;
-  check('rejoin: game dimulai ulang', q3.index === 1, q3.text);
-
-  players.Budi.emit('player:answer', { qIndex: 0, optionIndex: 0 });
-  await sleep(200);
-
-  // host "refresh halaman": socket lama ditutup, socket baru rejoin
+  /* ---------- 10. Rejoin guru + akhiri paksa ---------- */
   host.close();
   const host2 = io(URL, { transports: ['websocket'] });
   await once(host2, 'connect');
-  const rejHost = await new Promise((r) => host2.emit('host:rejoin', { code }, r));
-  check('rejoin: host bisa rejoin', rejHost.ok, rejHost.error || '');
-  const q3HostSnap = await once(host2, 'game:question');
-  check('rejoin: host dapat snapshot soal', q3HostSnap.text === q3.text, q3HostSnap.text);
+  // host1 sudah ditutup → listener lobby/dashboard pindah ke host2
+  host2.on('room:lobby', (d) => { latestLobby = d; });
+  host2.on('host:dashboard', (d) => { latestDash = d; });
+  const rejHost = await new Promise((r) => host2.emit('host:rejoin', { code, token }, r));
+  check('rejoin: guru bisa rejoin dengan token', rejHost.ok, rejHost.error || '');
+  const rejHostBad = await new Promise((r) => host2.emit('host:rejoin', { code, token: 'ngawang' }, r));
+  check('rejoin: token salah ditolak', !rejHostBad.ok, rejHostBad.error || '');
 
-  // pemain "refresh halaman"
-  players.Budi.close();
-  const budi2 = io(URL, { transports: ['websocket'] });
-  await once(budi2, 'connect');
-  const rejBudi = await new Promise((r) => budi2.emit('player:rejoin', { code, name: 'Budi' }, r));
-  check('rejoin: pemain bisa rejoin', rejBudi.ok, rejBudi.error || '');
-  const q3BudiSnap = await once(budi2, 'game:question');
-  check('rejoin: pemain dapat snapshot soal', q3BudiSnap.text === q3.text);
-  check('rejoin: status "sudah menjawab" terkirim', q3BudiSnap.youAnswered === true);
+  // mulai lagi, lalu akhiri paksa saat siswa mid-soal
+  const q1b = {};
+  for (const name of Object.keys(players)) q1b[name] = once(players[name], 'game:question');
+  host2.emit('host:start', { token });
+  for (const name of Object.keys(players)) await q1b[name];
+  players.Budi.emit('player:answer', { optionIndex: 0 });
 
-  // selesaikan game dengan socket baru
-  players.Siti.emit('player:answer', { qIndex: 0, optionIndex: 1 });
-  players.Andi.emit('player:answer', { qIndex: 0, optionIndex: 1 });
-  const rev3 = await once(host2, 'game:reveal');
-  check('rejoin: soal selesai setelah rejoin', rev3.correctIndex === 0, `dapat ${rev3.correctIndex}`);
-  host2.emit('host:next');
-  await once(host2, 'game:leaderboard');
-  host2.emit('host:next');
-  const q4 = await once(host2, 'game:question');
-  check('rejoin: lanjut ke soal 2', q4.index === 2, q4.text);
+  const finHost2 = once(host2, 'game:finished_host');
+  const finSiti = once(players.Siti, 'game:finished');
+  host2.emit('host:end_game', { token }); // akhiri paksa
+  const finH2 = await finHost2;
+  check('end game: guru akhiri paksa → podium keluar', finH2.podium.length === 3, finH2.podium.map((p) => p.name).join(', '));
+  const finS = await finSiti;
+  check('end game: siswa mid-soal tetap dapat hasil akhir', finS.you.review.length === 2, `review ${finS.you.review.length} soal`);
+  check('end game: Budi juara (satu-satunya menjawab)', finH2.podium[0].name === 'Budi', finH2.podium[0].name);
 
-  players.Siti.emit('player:answer', { qIndex: 1, optionIndex: 1 });
-  players.Andi.emit('player:answer', { qIndex: 1, optionIndex: 1 });
-  budi2.emit('player:answer', { qIndex: 1, optionIndex: 1 });
-  await once(host2, 'game:reveal');
-  host2.emit('host:next');
-  await once(host2, 'game:leaderboard');
-  host2.emit('host:next');
-  const fin2 = await once(host2, 'game:finished_host');
-  check('rejoin: game selesai normal', fin2.podium.length === 3, fin2.podium.map((p) => p.name).join(', '));
+  /* ---------- 11. Join setelah selesai ditolak ---------- */
+  const late = io(URL, { transports: ['websocket'] });
+  await once(late, 'connect');
+  const lateRes = await new Promise((r) => late.emit('player:join', { code, name: 'Dedi' }, r));
+  check('join: setelah selesai ditolak', !lateRes.ok, lateRes.error || '');
+  late.close();
 
-  /* ---------- 10. Rejoin setelah game selesai (regresi crash) ---------- */
-  const budi3 = io(URL, { transports: ['websocket'] });
-  await once(budi3, 'connect');
-  const rejFin = await new Promise((r) => budi3.emit('player:rejoin', { code, name: 'Budi' }, r));
-  check('rejoin: pemain bisa rejoin setelah selesai', rejFin.ok, rejFin.error || '');
-  const fin3 = await once(budi3, 'game:finished');
-  check('rejoin: snapshot hasil akhir diterima', fin3.you.rank === 1 && fin3.you.review.length === 2, `rank #${fin3.you.rank}, review ${fin3.you.review.length}`);
-  budi3.close();
-
-  const host3 = io(URL, { transports: ['websocket'] });
-  await once(host3, 'connect');
-  const rejHostFin = await new Promise((r) => host3.emit('host:rejoin', { code }, r));
-  check('rejoin: host bisa rejoin setelah selesai', rejHostFin.ok, rejHostFin.error || '');
-  const finHost3 = await once(host3, 'game:finished_host');
-  check('rejoin: host dapat snapshot podium', finHost3.podium.length === 3);
-  host3.close();
+  /* ---------- 12. Kick pemain ---------- */
+  host2.emit('host:play_again', { token });
+  await sleep(300);
+  const kickedP = once(players.Cici, 'player:kicked');
+  host2.emit('host:kick', { playerId: players.Cici.id }, () => {});
+  await kickedP;
+  await sleep(300);
+  check('kick: pemain dikeluarkan', latestLobby && latestLobby.players.length === 3, `${latestLobby && latestLobby.players.length} pemain`);
 
   /* ---------- cleanup ---------- */
   host2.close();
-  budi2.close();
   Object.values(players).forEach((s) => s.close());
 
   console.log('\n======================= RINGKASAN =======================');

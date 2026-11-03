@@ -1,4 +1,4 @@
-/* ================= KuisLive — Pemain client ================= */
+/* ================= KuisLive — Pemain client (mode mandiri) ================= */
 
 'use strict';
 
@@ -22,7 +22,7 @@ let myName = '';
 let questionEndsAt = 0;
 let rafId = null;
 let answeredThisRound = false;
-let lastQIndex = 0;
+let countdownTimer = null;
 
 /* ---------- util avatar ---------- */
 
@@ -34,7 +34,12 @@ function avatarHtml(name, color) {
   return `<span class="avatar" style="background:${color}">${initial(name)}</span>`;
 }
 
-/* ================= Join ================= */
+function showView(id) {
+  document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+/* ================= Join (PIN + nama satu halaman) ================= */
 
 function renderAvatarPicker() {
   const picker = $('avatarPicker');
@@ -57,17 +62,12 @@ function renderAvatarPicker() {
   });
 }
 
-function showView(id) {
-  document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
-  $(id).classList.add('active');
-}
-
 function join() {
   const code = $('codeInput').value.replace(/\D/g, '');
   const name = $('nameInput').value.trim();
   const err = $('joinError');
   err.textContent = '';
-  if (code.length !== 6) { err.textContent = 'Kode room harus 6 digit.'; return; }
+  if (code.length !== 6) { err.textContent = 'PIN harus 6 digit.'; return; }
   if (!name) { err.textContent = 'Nama wajib diisi.'; return; }
   socket.emit('player:join', { code, name, color: myColor }, (res) => {
     if (!res.ok) { err.textContent = res.error; return; }
@@ -92,7 +92,6 @@ if (urlCode) $('codeInput').value = urlCode.replace(/\D/g, '').slice(0, 6);
 
 socket.on('game:question', (q) => {
   answeredThisRound = false;
-  lastQIndex = q.index - 1;
   questionEndsAt = q.endsAt;
   showView('view-question');
 
@@ -112,11 +111,10 @@ socket.on('game:question', (q) => {
     wrap.appendChild(btn);
   });
 
-  // rejoin di tengah soal: kalau sudah menjawab, kunci tombol & tampilkan status
+  // rejoin di tengah soal: kalau sudah menjawab, kunci tombol
   if (q.youAnswered) {
     answeredThisRound = true;
     document.querySelectorAll('#playOptions .option-btn').forEach((b) => { b.disabled = true; });
-    $('answerStatus').classList.remove('hidden');
   }
 
   startTimerBar($('playTimerBar'), questionEndsAt);
@@ -126,63 +124,71 @@ function answer(index, btn) {
   if (answeredThisRound) return;
   answeredThisRound = true;
   stopTimerBar();
-  socket.emit('player:answer', { qIndex: lastQIndex, optionIndex: index });
+  socket.emit('player:answer', { optionIndex: index });
   document.querySelectorAll('#playOptions .option-btn').forEach((b) => { b.disabled = true; });
   btn.classList.add('dim');
-  $('answerStatus').classList.remove('hidden');
 }
 
-socket.on('game:reveal', ({ correctIndex }) => {
+// hasil jawaban → tampil ±3 detik → server otomatis kirim soal berikutnya
+socket.on('game:answer_result', (res) => {
   stopTimerBar();
-  const btns = [...document.querySelectorAll('#playOptions .option-btn')];
-  btns.forEach((b, i) => {
-    b.disabled = true;
-    if (i === correctIndex) b.classList.add('correct');
-    else b.classList.add('dim');
-  });
-  $('answerStatus').classList.add('hidden');
-});
+  showView('view-result');
 
-socket.on('game:reveal_you', (res) => {
-  showView('view-reveal');
   if (!res.answered) {
-    $('revealIcon').className = 'reveal-icon late';
-    $('revealIcon').innerHTML = ICONS.clock;
-    $('revealTitle').textContent = 'Waktu habis!';
-    $('revealPoints').textContent = '+0';
-    $('revealPoints').classList.add('zero');
-    $('revealMeme').textContent = 'Jawaban tidak terkirim';
+    $('resultIcon').className = 'reveal-icon late';
+    $('resultIcon').innerHTML = ICONS.clock;
+    $('resultTitle').textContent = 'Waktu habis!';
+    $('resultPoints').textContent = '+0';
+    $('resultPoints').classList.add('zero');
+    $('resultMeme').textContent = 'Jawaban tidak terkirim';
   } else if (res.correct) {
-    $('revealIcon').className = 'reveal-icon ok';
-    $('revealIcon').innerHTML = ICONS.check;
-    $('revealTitle').textContent = 'Benar!';
-    $('revealPoints').textContent = `+${res.points}`;
-    $('revealPoints').classList.remove('zero');
-    $('revealMeme').textContent = res.meme;
+    $('resultIcon').className = 'reveal-icon ok';
+    $('resultIcon').innerHTML = ICONS.check;
+    $('resultTitle').textContent = 'Benar!';
+    $('resultPoints').textContent = `+${res.points}`;
+    $('resultPoints').classList.remove('zero');
+    $('resultMeme').textContent = res.meme;
   } else {
-    $('revealIcon').className = 'reveal-icon bad';
-    $('revealIcon').innerHTML = ICONS.x;
-    $('revealTitle').textContent = 'Kurang tepat';
-    $('revealPoints').textContent = '+0';
-    $('revealPoints').classList.add('zero');
-    $('revealMeme').textContent = 'Semangat untuk soal berikutnya!';
+    $('resultIcon').className = 'reveal-icon bad';
+    $('resultIcon').innerHTML = ICONS.x;
+    $('resultTitle').textContent = 'Kurang tepat';
+    $('resultPoints').textContent = '+0';
+    $('resultPoints').classList.add('zero');
+    $('resultMeme').textContent = `Kunci: ${res.correctOption || ''}`;
   }
-  $('revealScore').textContent = res.score;
-  $('revealStreak').textContent = res.streak;
+  $('resultScore').textContent = res.score;
+  $('resultStreak').textContent = res.streak;
+
+  // hitung mundur visual (server yang memicu pemindahan soal)
+  startCountdown(res.nextInMs || 3000);
 });
 
-socket.on('game:leaderboard', ({ rows }) => {
-  showView('view-leaderboard');
-  const body = $('playLbBody');
+function startCountdown(ms) {
+  if (countdownTimer) clearInterval(countdownTimer);
+  const endAt = Date.now() + ms;
+  const tick = () => {
+    const remain = Math.max(0, endAt - Date.now());
+    $('countdown').textContent = Math.ceil(remain / 1000);
+    $('countdownBar').style.width = `${(remain / ms) * 100}%`;
+    if (remain <= 0) clearInterval(countdownTimer);
+  };
+  tick();
+  countdownTimer = setInterval(tick, 100);
+}
+
+// selesai semua soal → tampilkan klasemen live sambil menunggu pemain lain
+socket.on('game:player_done', ({ score, bestStreak, standings }) => {
+  showView('view-done');
+  $('doneScore').textContent = score;
+  const body = $('doneLbBody');
   body.innerHTML = '';
-  rows.forEach((r) => {
+  standings.forEach((r) => {
     const tr = document.createElement('tr');
     if (r.playerId === myId) tr.classList.add('me');
     tr.innerHTML = `
       <td class="rank-cell"><span class="rank-badge ${r.rank <= 3 ? 'r' + r.rank : ''}">${r.rank}</span></td>
       <td><span class="lb-player">${avatarHtml(r.name, r.color)}<span>${escapeHtml(r.name)}${r.playerId === myId ? ' (kamu)' : ''}</span></span></td>
-      <td>${r.score}</td>
-      <td class="delta ${r.delta ? '' : 'zero'}">${r.delta ? '+' + r.delta : '—'}</td>`;
+      <td>${r.score}</td>`;
     body.appendChild(tr);
   });
 });
@@ -217,7 +223,7 @@ socket.on('game:reset', () => {
 });
 
 socket.on('player:kicked', () => {
-  alert('Host mengeluarkan kamu dari permainan.');
+  alert('Guru mengeluarkan kamu dari permainan.');
   sessionStorage.removeItem('kuisPlayer');
   showView('view-join');
 });
@@ -304,7 +310,7 @@ if (savedPlayer) {
         $('waitAvatar').innerHTML = avatarHtml(name, myColor);
         $('waitName').textContent = name;
         if (res.state === 'lobby') showView('view-waiting');
-        // state lain (soal/reveal/leaderboard/finished) ditangani snapshot dari server
+        // state lain ditangani snapshot dari server (game:question / game:answer_result / game:player_done / game:finished)
       } else {
         sessionStorage.removeItem('kuisPlayer');
       }

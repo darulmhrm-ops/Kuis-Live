@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KuisLive — Host</title>
+  <title>KuisLive — Dashboard Guru</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css" />
@@ -17,12 +17,15 @@
         <span class="logo-bolt">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </span>
-        Kuis<span>Live</span> <em>Host</em>
+        Kuis<span>Live</span> <em>Guru</em>
       </a>
-      <nav class="topnav">
-        <button id="tabNew" class="tab active">Buat Baru</button>
-        <button id="tabSaved" class="tab">Kuis Tersimpan</button>
-      </nav>
+      <div class="topbar-right">
+        <nav class="topnav">
+          <button id="tabNew" class="tab active">Buat Baru</button>
+          <button id="tabSaved" class="tab">Kuis Tersimpan</button>
+        </nav>
+        <button id="logoutBtn" class="btn btn-outline btn-sm">Logout</button>
+      </div>
     </header>
 
     <div class="container">
@@ -30,7 +33,7 @@
       <div id="panelNew">
         <div class="panel-head">
           <h2>Buat Kuis Baru</h2>
-          <input id="quizTitle" class="input-title" placeholder="Judul kuis, misal: Kuis Pengetahuan Umum" maxlength="120" />
+          <input id="quizTitle" class="input-title" placeholder="Judul kuis, misal: Kuis Barudak Darul Bren Macum" maxlength="120" />
         </div>
 
         <div class="settings-row">
@@ -68,14 +71,17 @@
         <span class="logo-bolt">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </span>
-        Kuis<span>Live</span> <em>Host</em>
+        Kuis<span>Live</span> <em>Guru</em>
       </span>
-      <span class="room-code-label">Kode Room</span>
+      <div class="topbar-right">
+        <span class="room-code-label">Kode Room</span>
+        <button id="logoutBtn2" class="btn btn-outline btn-sm">Logout</button>
+      </div>
     </header>
 
     <div class="container lobby-wrap">
       <div class="lobby-code-card">
-        <p class="muted">Bagikan kode ini ke pemain:</p>
+        <p class="muted">Bagikan kode ini ke siswa:</p>
         <div id="lobbyCode" class="game-code">------</div>
         <div class="join-link-row">
           <input id="joinLink" class="input-link" readonly />
@@ -83,78 +89,90 @@
         </div>
         <div class="qr-wrap">
           <img id="joinQr" class="join-qr hidden" alt="QR code untuk bergabung" />
-          <p class="hint">Pemain bisa <strong>scan QR ini</strong> dari HP mereka, atau buka alamat di atas.</p>
+          <p class="hint">Siswa bisa <strong>scan QR ini</strong> dari HP mereka, atau buka alamat di atas.</p>
         </div>
         <p id="lobbyQuizTitle" class="lobby-quiz-title"></p>
         <button id="startBtn" class="btn btn-primary btn-big btn-pulse">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4.5v15a1 1 0 001.52.86l13-7.5a1 1 0 000-1.72l-13-7.5A1 1 0 006 4.5z"/></svg>
-          Mulai Permainan
+          Mulai Kuis
         </button>
-        <p id="lobbyHint" class="hint">Menunggu pemain bergabung…</p>
+        <p id="lobbyHint" class="hint">Menunggu siswa bergabung…</p>
       </div>
 
       <div class="lobby-players-card">
-        <h3>Pemain (<span id="playerCount">0</span>)</h3>
+        <h3>Siswa (<span id="playerCount">0</span>)</h3>
         <div id="lobbyPlayers" class="player-grid"></div>
       </div>
     </div>
   </section>
 
-  <!-- ================= GAME ================= -->
-  <section id="view-game" class="view">
+  <!-- ================= DASHBOARD LIVE ================= -->
+  <section id="view-dashboard" class="view">
     <header class="topbar game-topbar">
       <span class="brand">
         <span class="logo-bolt">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </span>
-        Kuis<span>Live</span>
+        Kuis<span>Live</span> <em>Dashboard Guru</em>
       </span>
-      <span id="qCounter" class="q-counter">Soal 1/5</span>
-      <span id="answeredBadge" class="answered-badge">0 menjawab</span>
+      <div class="topbar-right">
+        <span id="dashQuizTitle" class="dash-quiz-title"></span>
+        <span id="dashTimer" class="answered-badge">00:00</span>
+        <span id="dashPlayerCount" class="answered-badge">0 siswa</span>
+        <button id="endGameBtn" class="btn btn-accent btn-sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          Akhiri Kuis
+        </button>
+      </div>
     </header>
 
-    <div class="timer-track"><div id="timerBar" class="timer-bar"></div></div>
+    <div class="container dashboard-wrap">
+      <!-- klasemen live -->
+      <div class="dash-card">
+        <h3 class="dash-card-title">Klasemen Live</h3>
+        <table class="lb-table">
+          <thead><tr><th>#</th><th>Siswa</th><th>Skor</th><th>Progres</th><th>Status</th></tr></thead>
+          <tbody id="dashBody"></tbody>
+        </table>
+      </div>
+
+      <div class="dash-side">
+        <!-- referensi soal untuk guru -->
+        <div class="dash-card">
+          <h3 class="dash-card-title">Referensi Soal (kunci jawaban)</h3>
+          <div id="dashQuestions" class="ref-list"></div>
+        </div>
+
+        <!-- statistik per soal -->
+        <div class="dash-card">
+          <h3 class="dash-card-title">Statistik per Soal</h3>
+          <div id="dashStats" class="stat-list"></div>
+        </div>
+      </div>
+    </div>
+    <div id="reactionLayer" class="reaction-layer"></div>
+  </section>
+
+  <!-- ================= SELESAI ================= -->
+  <section id="view-finished" class="view">
+    <header class="topbar">
+      <span class="brand">
+        <span class="logo-bolt">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </span>
+        Kuis<span>Live</span> <em>Hasil Akhir</em>
+      </span>
+      <div class="topbar-right">
+        <button id="logoutBtn3" class="btn btn-outline btn-sm">Logout</button>
+      </div>
+    </header>
 
     <div class="container">
-      <!-- Soal -->
-      <div id="gameQuestion" class="game-question">
-        <h2 id="questionText" class="question-text"></h2>
-        <div id="optionGrid" class="option-grid host-options"></div>
-        <div class="host-controls">
-          <button id="skipBtn" class="btn btn-outline hidden">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 5v14a1 1 0 002 0V5a1 1 0 00-2 0z"/><path d="M9.5 12l8.2 6.1A1 1 0 0019 17.3V6.7a1 1 0 00-1.3-.8L9.5 12z"/></svg>
-            Lewati Soal
-          </button>
-          <button id="nextBtn" class="btn btn-primary btn-big" disabled>
-            Lanjut
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
-          </button>
-          <span id="nextHint" class="hint"></span>
-        </div>
-        <div id="reactionLayer" class="reaction-layer"></div>
-      </div>
-
-      <!-- Leaderboard -->
-      <div id="gameLeaderboard" class="game-leaderboard hidden">
-        <h2 class="lb-title">Papan Skor</h2>
-        <table class="lb-table">
-          <thead><tr><th>#</th><th>Pemain</th><th>Skor</th><th>Round</th></tr></thead>
-          <tbody id="lbBody"></tbody>
-        </table>
-        <div class="host-controls">
-          <button id="lbNextBtn" class="btn btn-primary btn-big">
-            Lanjut
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Selesai -->
-      <div id="gameFinished" class="game-finished hidden">
+      <div class="game-finished">
         <h2 class="lb-title">Permainan Selesai</h2>
         <div id="podium" class="podium"></div>
         <table class="lb-table">
-          <thead><tr><th>#</th><th>Pemain</th><th>Skor</th></tr></thead>
+          <thead><tr><th>#</th><th>Siswa</th><th>Skor</th></tr></thead>
           <tbody id="finBody"></tbody>
         </table>
         <div class="host-controls">

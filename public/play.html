@@ -10,7 +10,7 @@
 </head>
 <body class="page-play">
 
-  <!-- ================= JOIN ================= -->
+  <!-- ================= JOIN (PIN + nama satu halaman) ================= -->
   <section id="view-join" class="view active">
     <main class="join-card">
       <div class="logo small">
@@ -20,7 +20,7 @@
         <h1>Kuis<span>Live</span></h1>
       </div>
 
-      <label class="field-label" for="codeInput">Kode Room</label>
+      <label class="field-label" for="codeInput">PIN Room</label>
       <input id="codeInput" class="code-input big" maxlength="6" inputmode="numeric" placeholder="______" autocomplete="off" />
 
       <label class="field-label" for="nameInput">Nama Panggilan</label>
@@ -29,7 +29,7 @@
       <label class="field-label">Pilih Warna Avatar</label>
       <div id="avatarPicker" class="avatar-picker"></div>
 
-      <button id="joinBtn" class="btn btn-primary btn-big">Masuk</button>
+      <button id="joinBtn" class="btn btn-primary btn-big">Mulai</button>
       <p id="joinError" class="form-error"></p>
     </main>
   </section>
@@ -39,7 +39,7 @@
     <main class="waiting-card">
       <div id="waitAvatar" class="wait-avatar"></div>
       <h2 id="waitName">Pemain</h2>
-      <p class="muted">Kamu sudah masuk! Tunggu host memulai…</p>
+      <p class="muted">Kamu sudah masuk! Tunggu guru memulai…</p>
       <div class="wait-dots"><span></span><span></span><span></span></div>
     </main>
   </section>
@@ -55,7 +55,7 @@
     <main class="play-main">
       <h2 id="playQuestionText" class="question-text"></h2>
       <div id="playOptions" class="option-grid play-options"></div>
-      <p id="answerStatus" class="answer-status hidden">Jawaban terkirim! Menunggu pemain lain…</p>
+      <p id="answerStatus" class="answer-status hidden">Jawaban terkirim!</p>
     </main>
 
     <div id="reactionBar" class="reaction-bar">
@@ -78,26 +78,36 @@
     <div id="playReactionLayer" class="reaction-layer"></div>
   </section>
 
-  <!-- ================= HASIL JAWABAN ================= -->
-  <section id="view-reveal" class="view">
+  <!-- ================= HASIL JAWABAN (sebelum auto-pindah) ================= -->
+  <section id="view-result" class="view">
     <main class="reveal-card">
-      <div id="revealIcon" class="reveal-icon ok"></div>
-      <h2 id="revealTitle" class="reveal-title"></h2>
-      <div id="revealPoints" class="reveal-points"></div>
-      <p id="revealMeme" class="reveal-meme"></p>
-      <p class="muted">Total skor: <strong id="revealScore">0</strong> · Streak: <strong id="revealStreak">0</strong></p>
+      <div id="resultIcon" class="reveal-icon ok"></div>
+      <h2 id="resultTitle" class="reveal-title"></h2>
+      <div id="resultPoints" class="reveal-points"></div>
+      <p id="resultMeme" class="reveal-meme"></p>
+      <p class="muted">Total skor: <strong id="resultScore">0</strong> · Streak: <strong id="resultStreak">0</strong></p>
+      <div class="auto-next">
+        <div class="auto-next-label">Soal berikutnya</div>
+        <div class="auto-next-count"><span id="countdown">3</span> detik</div>
+        <div class="auto-next-track"><div id="countdownBar" class="auto-next-bar"></div></div>
+      </div>
     </main>
   </section>
 
-  <!-- ================= LEADERBOARD ================= -->
-  <section id="view-leaderboard" class="view">
+  <!-- ================= Selesai (menunggu pemain lain) ================= -->
+  <section id="view-done" class="view">
     <main class="lb-card">
-      <h2 class="lb-title">Papan Skor</h2>
+      <div class="done-head">
+        <div class="done-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <h2 class="lb-title">Kamu sudah selesai!</h2>
+        <p class="muted">Skor kamu: <strong id="doneScore">0</strong> · Menunggu pemain lain…</p>
+      </div>
       <table class="lb-table">
-        <thead><tr><th>#</th><th>Pemain</th><th>Skor</th><th>Round</th></tr></thead>
-        <tbody id="playLbBody"></tbody>
+        <thead><tr><th>#</th><th>Pemain</th><th>Skor</th></tr></thead>
+        <tbody id="doneLbBody"></tbody>
       </table>
-      <p class="hint">Soal berikutnya sebentar lagi…</p>
     </main>
   </section>
 

@@ -1,6 +1,6 @@
 # ⚡ KuisLive — Aplikasi Kuis Interaktif Real-Time (ala Quizizz)
 
-Aplikasi kuis multiplayer live: **host membuat kuis → pemain join pakai kode 6 digit → menjawab real-time di HP/laptop masing-masing → leaderboard & podium otomatis.**
+Aplikasi kuis multiplayer dengan **dua peran**: **Guru/Admin** (buat kuis, pantau dashboard live) dan **Siswa** (masuk dengan PIN, menjawab dengan tempo sendiri). Setelah siswa menjawab → lihat hasil → **3 detik → soal berikutnya otomatis** (tanpa klik guru).
 
 Dibuat dengan Node.js + Express + Socket.IO, frontend vanilla JS (tanpa build step).
 
@@ -18,12 +18,26 @@ Buka **http://localhost:3000**
 
 ### Cara pakai
 
-1. **Host**: buka http://localhost:3000 → klik **Buat Kuis** → isi judul, tulis soal (4 opsi + tandai kunci jawaban + batas waktu + poin) → **Simpan & Buat Room**.
-2. **Bagikan kode room 6 digit** (atau link join) ke pemain.
-3. **Pemain**: buka http://localhost:3000 → masukkan kode → isi nama → pilih avatar → **Masuk**.
-4. **Host**: klik **Mulai Permainan** → pemain menjawab di device mereka → leaderboard tiap soal → podium di akhir.
+1. **Guru**: buka http://localhost:3000 → klik **"Masuk sebagai Guru"** → login password (default `guru123`) → buat kuis (judul, soal, 4 opsi, kunci jawaban, batas waktu, poin) → **Simpan & Buat Room**.
+2. **Bagikan kode room 6 digit** (atau link/QR) ke siswa.
+3. **Siswa**: buka http://localhost:3000 → **"Masuk sebagai Siswa"** → isi **PIN + nama + warna avatar dalam satu halaman** → **Mulai**.
+4. **Guru**: klik **Mulai Kuis** → setiap siswa menjawab dengan tempo sendiri → **soal berikutnya otomatis** setelah 3 detik → guru memantau **dashboard live** → podium di akhir.
 
 > Buka dari HP? Jalankan `npm start` lalu akses `http://<IP-komputer>:3000` dari HP dalam jaringan WiFi yang sama.
+
+### Password Guru
+
+Default: `guru123`. Ganti dengan environment variable:
+
+```bash
+# Windows (PowerShell)
+$env:ADMIN_PASSWORD = "password-rahasia"; npm start
+
+# Linux/Mac
+ADMIN_PASSWORD="password-rahasia" npm start
+```
+
+> Catatan keamanan: ini autentikasi sederhana bergaya "password kelas" (cukup untuk penggunaan kelas), bukan sistem keamanan tinggi. Jangan pakai untuk data sensitif di internet publik tanpa pengamanan tambahan.
 
 ---
 
@@ -68,27 +82,37 @@ Lihat bagian **"IPv4 Address"** pada adapter WiFi yang aktif, misalnya `192.168.
 
 ## ✨ Fitur
 
-### Host
+### Peran & Tampilan (berbeda total)
+
+| Peran | Tampilan |
+|---|---|
+| **Guru / Admin** | Dashboard: klasemen live, progres tiap siswa, statistik per soal, referensi kunci jawaban, timer, tombol akhiri kuis |
+| **Siswa** | Layar fokus menjawab: soal besar, 4 tombol warna, timer bar, hasil + hitung mundur auto-pindah |
+
+### Guru
+- **Login password** (default `guru123`, bisa diganti via env `ADMIN_PASSWORD`)
 - **Editor kuis**: tambah/hapus/duplikat/urutkan soal, 4 opsi berwarna, tandai kunci jawaban, batas waktu 5–180 detik, poin 500/1000/2000
 - **Pengaturan**: acak urutan soal, acak urutan opsi
-- **Kuis tersimpan**: kuis disimpan otomatis ke `data/quizzes.json`, bisa dipakai ulang & dihapus
-- **Lobby**: kode room, link join + tombol salin, **QR code untuk di-scan HP pemain**, daftar pemain (avatar), keluarkan pemain
-- **Konsol live**: timer bar, hitungan "x/y menjawab", grafik bar distribusi jawaban per opsi, kunci jawaban ditandai
-- **Kontrol**: Lanjut, **Lewati Soal** (akhiri soal lebih awal), Main Lagi
-- **Podium**: juara 1/2/3 dengan animasi + tabel skor akhir
+- **Kuis tersimpan**: disimpan ke `data/quizzes.json`, bisa dipakai ulang & dihapus
+- **Lobby**: kode room, link join + tombol salin, **QR code untuk di-scan HP siswa**, daftar siswa, keluarkan siswa
+- **Dashboard live**: klasemen real-time, posisi soal tiap siswa ("Soal 2/5"), progress bar, status (Menjawab/Selesai), statistik per soal (berapa menjawab & benar), referensi kunci jawaban
+- **Kontrol**: Mulai Kuis, **Akhiri Kuis** (paksa selesai → podium), Main Lagi, Logout
 
-### Pemain
-- Join dengan kode + nama + pilih avatar (18 pilihan)
-- Soal dengan 4 tombol warna (merah/biru/kuning/hijau) + timer bar
+### Siswa
+- Join **PIN + nama + warna avatar dalam satu halaman** → langsung masuk
+- Soal dengan 4 tombol warna (merah/biru/amber/hijau) + timer bar
 - **Skor berbasis kecepatan**: jawab cepat = poin penuh, makin lambat makin sedikit (min. setengah poin dasar)
-- Streak (jawaban benar beruntun), meme penyemangat, reaksi emoji mengambang
-- Leaderboard tiap soal (peringkat & poin round), hasil akhir: peringkat, skor, streak terbaik, podium mini, **review semua jawaban** (termasuk soal yang tidak dijawab)
+- Setelah menjawab → hasil (benar/salah, +poin, kunci, meme) → **hitung mundur 3 detik → soal berikutnya OTOMATIS**
+- Siswa cepat bisa racing ke depan (progresi mandiri, tidak saling menunggu)
+- Selesai → klasemen live sambil menunggu yang lain → podium + peringkat + streak + **review semua jawaban**
+- Streak, reaksi SVG mengambang, avatar lingkaran berwarna + inisial
 
 ### Teknis
 - Real-time penuh via WebSocket (Socket.IO)
-- Server-authoritative: skor & waktu dihitung di server (anti curang)
-- **Rejoin otomatis**: host/pemain yang refresh halaman di tengah permainan langsung kembali ke state yang sama (skor & jawaban aman)
-- Pemain yang koneksinya terputus diberi grace period 2 menit untuk kembali
+- Server-authoritative: skor, waktu, dan progresi dihitung di server (anti curang)
+- **Mode mandiri**: tiap pemain punya timer & progresi sendiri; soal berpindah otomatis tanpa aksi guru
+- **Rejoin otomatis**: guru/siswa yang refresh halaman kembali ke state yang sama (soal aktif diteruskan dengan sisa waktu, skor aman)
+- Siswa yang koneksinya terputus diberi grace period 2 menit; join terlambat saat kuis berjalan langsung mulai dari soal 1
 - Validasi input & sanitasi teks
 
 ---
@@ -97,20 +121,22 @@ Lihat bagian **"IPv4 Address"** pada adapter WiFi yang aktif, misalnya `192.168.
 
 ```
 kuis-live/
-├── server.js            # Express + Socket.IO + seluruh game logic
+├── server.js            # Express + Socket.IO + auth + game loop mandiri
 ├── package.json
+├── render.yaml          # konfigurasi deploy Render
 ├── data/
 │   └── quizzes.json     # kuis tersimpan (otomatis dibuat)
 ├── public/
-│   ├── index.html       # beranda (buat / ikut kuis)
-│   ├── host.html        # editor kuis + lobby + konsol host
-│   ├── play.html        # halaman pemain
-│   ├── css/style.css    # tema ala Quizizz
+│   ├── index.html       # beranda pemilih peran (Guru / Siswa)
+│   ├── login.html       # login password guru
+│   ├── host.html        # editor kuis + lobby + dashboard guru
+│   ├── play.html        # halaman siswa
+│   ├── css/style.css    # design system modern
 │   └── js/
-│       ├── host.js      # logika host
-│       └── play.js      # logika pemain
+│       ├── host.js      # logika guru/dashboard
+│       └── play.js      # logika siswa
 ├── test/
-│   └── flow.test.js     # integration test (44 skenario)
+│   └── flow.test.js     # integration test (37 skenario)
 └── screenshots/         # tangkapan layar hasil pengujian
 ```
 
@@ -123,7 +149,7 @@ npm start          # terminal 1: jalankan server
 npm test           # terminal 2: integration test
 ```
 
-Test mensimulasikan 1 host + 3 pemain memainkan kuis 2 soal dari awal sampai selesai (44 pengecekan): join/validasi, alur soal, perhitungan skor berbasis kecepatan, leaderboard, podium, review jawaban, main lagi, dan rejoin host/pemain di berbagai state permainan.
+Test mensimulasasi 1 guru (login password) + 4 siswa memainkan kuis 2 soal (37 pengecekan): autentikasi & token, join/validasi, skor berbasis kecepatan, **progresi mandiri** (siswa cepat advance tanpa menunggu yang lain), timeout otomatis, klasemen live, dashboard guru, podium, review jawaban, akhiri paksa, main lagi, rejoin guru, dan kick siswa.
 
 ---
 
@@ -132,6 +158,7 @@ Test mensimulasikan 1 host + 3 pemain memainkan kuis 2 soal dari awal sampai sel
 | Variabel | Default | Keterangan |
 |---|---|---|
 | `PORT` | `3000` | Port server |
+| `ADMIN_PASSWORD` | `guru123` | Password login guru |
 
 ---
 

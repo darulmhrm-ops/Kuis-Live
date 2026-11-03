@@ -14,4 +14,7 @@ services:
         value: "20"
       - key: PORT
         value: "3000"
+      # Password login guru — GANTI nilai di bawah sebelum deploy publik!
+      - key: ADMIN_PASSWORD
+        value: "guru123"
     healthCheckPath: /
