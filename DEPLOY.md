@@ -2,69 +2,83 @@
 
 Panduan lengkap agar aplikasi bisa diakses siapa saja, kapan saja, **tanpa harus menyalakan laptop Anda**.
 
-Metode: **GitHub** (simpan kode) + **Render** (jalankan server gratis) + **GitHub Actions** (jaga server tetap aktif).
+**Pilih salah satu platform** (semua gratis, mendukung WebSocket/game real-time):
 
-Total waktu: ±15 menit. Biaya: **Rp 0**.
+| Platform | Kartu Kredit? | Tidur? | Rekomendasi |
+|---|---|---|---|
+| **Northflank** | ❌ Tidak perlu | ❌ Tidak tidur | ⭐ **Paling direkomendasikan** |
+| **Koyeb** | ❌ Tidak perlu | ⚠️ Bisa scale-to-zero | Alternatif bagus |
+| **Glitch** | ❌ Tidak perlu | 😴 Tidur 5 menit | Paling simpel, perlu keep-alive |
+| **Render** | ✅ Perlu verifikasi $1 | 😴 Tidur 15 menit | Kalau punya kartu |
 
 ---
 
-## Langkah 1 — Buat Repo di GitHub
+## OPSI 1 — Northflank (⭐ Rekomendasi: gratis, tanpa kartu, tidak tidur)
 
-1. Buka [github.com](https://github.com) → login (daftar gratis kalau belum punya)
-2. Klik tombol **+** (pojok kanan atas) → **New repository**
-3. Isi:
-   - **Repository name**: `kuis-live`
-   - **Visibility**: Private (aman) atau Public — dua-duanya bisa
-4. Klik **Create repository**
-5. Biarkan halaman itu terbuka
-
-## Langkah 2 — Push Kode ke GitHub
-
-Buka **PowerShell**, jalankan:
+### Langkah 1 — Push kode ke GitHub (kalau belum)
 
 ```powershell
 cd "C:\Tugas Kuliah\PPKTI  ARTIKEL 2\kuis-live"
-
-# ganti USERNAME dengan username GitHub Anda
 git remote set-url origin https://github.com/USERNAME/kuis-live.git
 git push -u origin main
 ```
 
-> Saat diminta login: masukkan username GitHub + **Personal Access Token** (bukan password).
-> Belum punya token? Buat di: github.com → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token → centang **repo** → copy tokennya.
+### Langkah 2 — Deploy di Northflank
 
-## Langkah 3 — Deploy ke Render
-
-1. Buka [dashboard.render.com](https://dashboard.render.com) → **Sign Up** (pakai akun GitHub, gratis, tanpa kartu kredit)
-2. Klik **New +** → **Blueprint**
-3. Pilih repo **kuis-live** → **Connect**
-4. Render membaca `render.yaml` otomatis → klik **Apply**
-5. Tunggu ±2-3 menit sampai status **Live** (warna hijau)
-6. Klik nama service → copy URL-nya, bentuknya:
+1. Buka [northflank.com](https://northflank.com) → **Sign Up** (pakai login GitHub — **tanpa kartu kredit**)
+2. Klik **+ Create New** → **Project** → beri nama (misal `kuislive`) → **Create Project**
+3. Di dalam project: **+ Create New** → **Service** → pilih **Web Service**
+4. **Deployment source**: pilih **GitHub** → authorize → pilih repo `kuis-live`
+5. **Build type**: pilih **Dockerfile** (repo sudah ada `Dockerfile` siap pakai)
+6. **Networking / Port**: isi port **3000**, centang **Publicly expose**
+7. **Environment variables** (klik Add):
+   - `ADMIN_PASSWORD` = password guru pilihan Anda (misal `kuisbarudak2024`)
+8. Klik **Create Service** → tunggu build ±2-3 menit
+9. Setelah Live, klik service → tab **Networking/URLs** → copy URL-nya:
    ```
-   https://kuislive-xxxx.onrender.com
+   https://kuislive-xxxx.northflank.app
    ```
 
-**Selesai!** URL itu bisa langsung dibagikan ke siapa saja.
+**Selesai!** URL itu bisa langsung dibagikan — server tidak tidur, laptop bisa dimatikan.
 
-## Langkah 4 — Ganti Password Guru (WAJIB sebelum dibagikan)
+---
 
-1. Di halaman service Render → menu kiri **Environment**
-2. Cari `ADMIN_PASSWORD` → klik **Edit** → ganti `guru123` dengan password Anda
-3. **Save changes** (Render akan restart otomatis ±1 menit)
+## OPSI 2 — Koyeb (gratis, tanpa kartu)
 
-## Langkah 5 — Jaga Server Tetap Aktif 24 Jam
+1. Buka [koyeb.com](https://koyeb.com) → **Sign Up** dengan GitHub
+2. **Create** → **Create Service** → **GitHub deployment** → pilih repo `kuis-live`
+3. **Builder**: Docker (pakai Dockerfile di repo)
+4. **Instance**: pilih **Free (eco)**
+5. **Environment variables**: tambahkan `ADMIN_PASSWORD` = password Anda
+6. **Port**: 3000
+7. **Deploy** → tunggu ±2 menit → URL: `https://kuis-live-xxxx.koyeb.app`
 
-Paket gratis Render menidurkan server setelah ±15 menit tidak dipakai (orang pertama yang buka harus tunggu ±30 detik). Agar **selalu siang**:
+> Catatan: instance "eco" bisa tidur saat tidak dipakai, tapi bangun cepat saat ada akses.
 
-1. Buka repo GitHub Anda → tab **Settings** → menu kiri **Secrets and variables** → **Actions**
+---
+
+## OPSI 3 — Glitch (paling simpel, tanpa kartu)
+
+1. Buka [glitch.com](https://glitch.com) → **Sign Up** dengan GitHub
+2. **New Project** → **Import from GitHub** → paste URL repo:
+   ```
+   https://github.com/USERNAME/kuis-live.git
+   ```
+3. Glitch otomatis mendeteksi Node.js dan menjalankan `npm start`
+4. Klik **Share** → copy URL Live Site: `https://nama-project.glitch.me`
+5. Project tidur setelah ±5 menit — pakai keep-alive di bawah supaya tetap aktif
+
+---
+
+## Keep-Alive 24 Jam (untuk platform yang tidur: Glitch/Koyeb/Render)
+
+Repo sudah punya workflow `.github/workflows/keepalive.yml`. Cukup:
+
+1. Buka repo GitHub → **Settings** → **Secrets and variables** → **Actions**
 2. Tab **Variables** → **New repository variable**
-3. Isi:
-   - **Name**: `APP_URL`
-   - **Value**: `https://kuislive-xxxx.onrender.com` (URL dari Langkah 3)
-4. **Save**
+3. Name: `APP_URL` → Value: URL aplikasi Anda → **Save**
 
-Workflow `keepalive.yml` akan otomatis ping server setiap 10 menit — server tidak pernah tidur, dan laptop Anda bisa mati total.
+Workflow akan ping aplikasi setiap 10 menit otomatis (gratis, di server GitHub).
 
 ---
 
@@ -83,29 +97,16 @@ QR code di lobby guru otomatis berisi URL publik yang benar.
 
 | Hal | Keterangan |
 |---|---|
-| **Kuis tersimpan** | Kuis demo selalu ada. Kuis yang dibuat guru tersimpan di server Render — bertahan selama service tidak di-redeploy. Untuk keamanan, simpan juga salinan soal di komputer |
-| **Skor & data pemain** | Disimpan di memori server (hilang saat service restart) — cocok untuk kuis kelas |
-| **Keamanan** | Password guru adalah satu-satunya pengaman. Jangan bagikan password ke siswa. Untuk penggunaan serius, pertimbangkan upgrade |
-| **Batas gratis Render** | 750 jam/bulan (cukup untuk 1 service 24 jam), RAM 512 MB |
-| **WebSocket** | Sudah didukung penuh — game real-time jalan normal |
-
----
-
-## Alternatif Hosting Lain
-
-| Platform | Kelebihan | Kekurangan |
-|---|---|---|
-| **Render** (panduan ini) | Paling mudah, gratis, tanpa kartu kredit | Tidur 15 menit (diatasi keep-alive) |
-| **Northflank** | Gratis, **tidak tidur**, tanpa kartu kredit | Setup sedikit lebih rumit |
-| **Koyeb** | Gratis, deploy dari GitHub | Instance "eco" bisa scale-to-zero |
-| **Railway** | Tidak tidur, cepat | Kredit trial $5 habis → perlu bayar |
-| **VPS** (Biznet, DigitalOcean) | Kontrol penuh, domain sendiri | Berbayar (±Rp 50-100rb/bulan) |
+| **Kuis tersimpan** | Kuis demo selalu ada. Kuis buatan guru tersimpan di server — bisa hilang saat service di-redeploy. Simpan salinan soal penting di komputer |
+| **Skor & data pemain** | Disimpan di memori server (hilang saat restart) — cocok untuk kuis kelas |
+| **Keamanan** | Password guru (`ADMIN_PASSWORD`) adalah satu-satunya pengaman — jangan bagikan ke siswa |
+| **WebSocket** | Didukung penuh di semua platform di atas — game real-time jalan normal |
 
 ---
 
 ## Update Aplikasi Nanti
 
-Setelah edit kode, cukup:
+Setelah edit kode:
 
 ```powershell
 git add -A
@@ -113,4 +114,17 @@ git commit -m "deskripsi perubahan"
 git push
 ```
 
-Render otomatis deploy ulang dalam ±2 menit.
+Semua platform di atas otomatis deploy ulang dalam ±2 menit.
+
+---
+
+## Troubleshoot
+
+| Masalah | Solusi |
+|---|---|
+| Build gagal di Northflank/Koyeb | Pastikan build type = **Dockerfile** (bukan buildpack) |
+| Aplikasi tidak bisa diakses | Cek port 3000 sudah di-expose dan status service "Live" |
+| WebSocket tidak konek | Pastikan akses via HTTPS URL platform (bukan IP langsung) |
+| Lupa password guru | Ganti env `ADMIN_PASSWORD` di dashboard platform → service restart otomatis |
+| QR code salah URL | QR mengikuti host header — akses host lewat URL publik platform, bukan localhost |
+

@@ -1,0 +1,8 @@
+# jangan ikut masuk ke Docker image
+node_modules
+tools
+screenshots
+.git
+.github
+*.md
+!DEPLOY.md
