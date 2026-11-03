@@ -27,7 +27,11 @@ Buka **http://localhost:3000**
 
 ---
 
-## 📱 Main dari HP Lain (Multiplayer Lokal)
+## 📱 Main dari HP Lain
+
+**Pemain di luar jaringan WiFi?** Lihat [Publikasi ke Internet](#-publikasi-ke-internet-biar-bisa-main-dari-mana-saja) — deploy ke Render atau pakai tunnel Cloudflare, lalu semua orang buka URL yang sama dari mana saja.
+
+**Pemain satu WiFi dengan komputer host** (tanpa internet):
 
 Semua pemain cukup terhubung ke **WiFi yang sama** dengan komputer host.
 
@@ -128,6 +132,61 @@ Test mensimulasikan 1 host + 3 pemain memainkan kuis 2 soal dari awal sampai sel
 | Variabel | Default | Keterangan |
 |---|---|---|
 | `PORT` | `3000` | Port server |
+
+---
+
+## 🌍 Publikasi ke Internet (biar bisa main dari mana saja)
+
+### Opsi A — Tunnel instan (Cloudflare, gratis, tanpa akun)
+
+Cocok untuk tes cepat atau main sebentar. URL publik muncul **seketika**, tapi hanya aktif selama komputer Anda menyala.
+
+```bash
+# 1. jalankan server (biarkan terbuka)
+npm start
+
+# 2. di terminal baru, jalankan tunnel
+tools\cloudflared.exe tunnel --url http://localhost:3000 --no-autoupdate
+```
+
+Output akan menampilkan URL seperti:
+
+```
+https://nama-acak.trycloudflare.com
+```
+
+Bagikan URL itu ke semua pemain — host maupun pemain buka URL yang sama. Kode room, QR code, dan WebSocket semuanya jalan lewat URL publik ini.
+
+> Catatan: URL berubah setiap tunnel dijalankan ulang. Untuk URL tetap, pakai Opsi B.
+
+### Opsi B — Deploy permanen ke Render (gratis, 24 jam)
+
+Repo ini sudah siap deploy (ada `render.yaml`):
+
+1. **Buat repo GitHub** dan push project ini:
+   ```bash
+   git remote add origin https://github.com/<username>/kuis-live.git
+   git push -u origin main
+   ```
+2. Buka [dashboard.render.com](https://dashboard.render.com) → daftar/login (bisa pakai akun GitHub)
+3. **New +** → **Blueprint** → pilih repo `kuis-live` → Render otomatis membaca `render.yaml`
+4. Tunggu build selesai (±2 menit) → dapat URL tetap: `https://kuis-live-xxxx.onrender.com`
+5. Bagikan URL itu — siapa saja di internet bisa buka dan main
+
+Catatan paket gratis Render:
+- Server "tidur" setelah ~15 menit tidak ada aktivitas; pemain pertama yang buka akan menunggu ±30 detun server bangun
+- Kuis yang dibuat tersimpan di filesystem server (bertahan saat restart, hilang saat redeploy) — kuis demo selalu ada karena ikut di repo
+- WebSocket didukung penuh (sudah diverifikasi end-to-end)
+
+### Alternatif lain
+
+| Platform | Cara | Catatan |
+|---|---|---|
+| **Railway** | New Project → Deploy from GitHub | Gratis $5 kredit/bulan, tidak sleep |
+| **Fly.io** | `fly launch` (perlu Dockerfile) | Gratu 3 VM kecil |
+| **VPS** (DigitalOcean, Biznet, dll) | `npm install && npm start` + PM2 | Berbayar, kontrol penuh |
+
+Semua platform di atas mendukung Node.js + WebSocket, jadi aplikasi ini jalan tanpa perubahan kode.
 
 ---
 

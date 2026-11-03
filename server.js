@@ -132,8 +132,11 @@ function lobbyPayload(room) {
 
 // siapkan URL join (pakai host header supaya benar untuk HP di jaringan yang sama) + QR code
 async function prepareJoinInfo(room, socket) {
-  const host = (socket && socket.handshake && socket.handshake.headers && socket.handshake.headers.host) || `localhost:${PORT}`;
-  room.joinUrl = `http://${host}/play.html?code=${room.code}`;
+  const headers = (socket && socket.handshake && socket.handshake.headers) || {};
+  const host = headers.host || `localhost:${PORT}`;
+  // deteksi protokol: proxy/tunnel (Cloudflare, Render) mengirim x-forwarded-proto
+  const proto = headers['x-forwarded-proto'] || (socket.handshake && socket.handshake.secure ? 'https' : 'http');
+  room.joinUrl = `${proto}://${host}/play.html?code=${room.code}`;
   try {
     room.qr = await QRCode.toDataURL(room.joinUrl, { width: 240, margin: 1 });
   } catch {

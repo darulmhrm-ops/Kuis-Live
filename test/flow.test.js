@@ -86,7 +86,7 @@ async function main() {
   await sleep(300); // beri waktu event lobby terakhir sampai
   check('lobby: 3 pemain terdaftar', latestLobby && latestLobby.players.length === 3, `dapat ${latestLobby ? latestLobby.players.length : 0}`);
   check('lobby: QR code join tersedia', latestLobby && typeof latestLobby.qr === 'string' && latestLobby.qr.startsWith('data:image/png'), latestLobby && latestLobby.qr ? 'ada' : 'tidak ada');
-  check('lobby: URL join sesuai host', latestLobby && /^http:\/\/.+\/play\.html\?code=\d{6}$/.test(latestLobby.joinUrl || ''), latestLobby && latestLobby.joinUrl);
+  check('lobby: URL join sesuai host', latestLobby && /^https?:\/\/.+\/play\.html\?code=\d{6}$/.test(latestLobby.joinUrl || ''), latestLobby && latestLobby.joinUrl);
 
   /* ---------- 4. Mulai game, soal 1 ---------- */
   // daftar listener SEBELUM host:start
