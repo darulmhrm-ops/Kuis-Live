@@ -1,0 +1,31 @@
+# Keep-alive untuk Render free tier
+# Paket gratis Render "tidur" setelah ~15 menit tidak ada aktivitas.
+# Workflow ini ping URL aplikasi setiap 10 menit supaya tetap bangun 24 jam.
+# Gratis: GitHub Actions memberi 2000 menit/bulan (repo private) — cukup.
+#
+# SETUP setelah deploy di Render:
+# 1. Buka repo GitHub → Settings → Secrets and variables → Actions → tab "Variables"
+# 2. Klik "New repository variable"
+# 3. Name: APP_URL   Value: https://nama-app-anda.onrender.com
+# 4. Save — workflow ini otomatis mulai bekerja
+
+name: Keep Alive
+
+on:
+  schedule:
+    # setiap 10 menit (waktu UTC)
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # bisa dijalankan manual dari tab Actions
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping aplikasi
+        if: ${{ vars.APP_URL != '' }}
+        run: |
+          echo "Ping ${{ vars.APP_URL }} ..."
+          # -f: gagal kalau HTTP error; retry 3x untuk cold start
+          curl -fsS --retry 3 --retry-delay 20 --max-time 120 "${{ vars.APP_URL }}/" \
+            && echo "Aplikasi tetap aktif" \
+            || echo "Ping gagal (mungkin cold start) — akan dicoba lagi 10 menit lagi"

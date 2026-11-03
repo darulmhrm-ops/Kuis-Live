@@ -16,6 +16,8 @@ npm start
 
 Buka **http://localhost:3000**
 
+> **Ingin bisa diakses dari internet tanpa buka laptop?** Lihat panduan lengkap di [DEPLOY.md](DEPLOY.md) — deploy gratis ke Render + keep-alive 24 jam (±15 menit setup).
+
 ### Cara pakai
 
 1. **Guru**: buka http://localhost:3000 → klik **"Masuk sebagai Guru"** → login password (default `guru123`) → buat kuis (judul, soal, 4 opsi, kunci jawaban, batas waktu, poin) → **Simpan & Buat Room**.

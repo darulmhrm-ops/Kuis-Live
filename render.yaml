@@ -12,9 +12,9 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
-      - key: PORT
-        value: "3000"
       # Password login guru — GANTI nilai di bawah sebelum deploy publik!
       - key: ADMIN_PASSWORD
         value: "guru123"
+      # Catatan: PORT tidak di-set di sini — Render otomatis menyediakan PORT
+      # dan aplikasi membaca process.env.PORT.
     healthCheckPath: /
