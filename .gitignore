@@ -1,6 +1,9 @@
 # dependency
 node_modules/
 
+# binary tunnel (download terpisah, jangan masuk repo)
+tools/cloudflared.exe
+
 # log & OS
 npm-debug.log*
 .DS_Store
